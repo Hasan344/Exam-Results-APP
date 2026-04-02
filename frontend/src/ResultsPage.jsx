@@ -1,51 +1,77 @@
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
 
-function ResultsPage() {
+function ResultsPage({ config }) {
   const [students, setStudents] = useState([]);
-  const [searchParams] = useSearchParams();
-  const subjectId = Number(searchParams.get("subjectId"));
+  const [loading, setLoading] = useState(true);
+
+  const subjectId = config?.subject?.id;
+  const buildingCode = config?.building?.code;
+  const examDate = config?.date;
+  const isSubject4 = subjectId === 4;
 
   useEffect(() => {
-    fetch("http://localhost:5000/students/results")
-      .then(res => res.json())
-      .then(data => setStudents(data))
-      .catch(() => alert("Məlumat yüklənmədi"));
-  }, []);
+    const params = new URLSearchParams();
+    if (buildingCode) params.append("buildingCode", buildingCode);
+    if (examDate) params.append("examDate", examDate);
+    //if (subjectId) params.append("subjectId", subjectId);
 
-  const isSubject4 = subjectId === 4;
+    fetch(`http://localhost:5000/students/results?${params.toString()}`)
+      .then(res => res.json())
+      .then(data => { setStudents(data); setLoading(false); })
+      .catch(() => { alert("Məlumat yüklənmədi"); setLoading(false); });
+  }, [buildingCode, examDate, subjectId]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-6">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold text-white text-center mb-8">Nəticələr</h1>
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-bold text-white">Nəticələr</h1>
+          <div className="flex gap-2 text-xs text-white/70">
+            {config?.building && (
+              <span className="px-3 py-1.5 rounded-lg bg-white/10 border border-white/20">
+                {config.building.name}
+              </span>
+            )}
+            {examDate && (
+              <span className="px-3 py-1.5 rounded-lg bg-white/10 border border-white/20">
+                {examDate}
+              </span>
+            )}
+          </div>
+        </div>
 
         <div className="backdrop-blur-lg bg-white/20 border border-white/30 rounded-3xl shadow-2xl overflow-hidden">
-          <table className="w-full text-white">
-            <thead>
-              <tr className="bg-white/20 text-left">
-                <th className="px-6 py-4">№</th>
-                <th className="px-6 py-4">Ad Soyad Ata adı</th>
-                <th className="px-6 py-4">Bal 1</th>
-                {isSubject4 && <th className="px-6 py-4">Bal 2</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {students.map((s, index) => (
-  <tr
-    key={s.orderNo}
-    className={`border-t border-white/20 hover:bg-white/20 transition-colors ${
-      index % 2 === 0 ? "bg-white/10" : "bg-indigo-900/30"
-    }`}
-  >
-    <td className="px-6 py-4">{s.orderNo}</td>
-    <td className="px-6 py-4">{s.name} {s.surname} {s.middleName}</td>
-    <td className="px-6 py-4">{s.result ?? "-"}</td>
-    {isSubject4 && <td className="px-6 py-4">{s.result2 ?? "-"}</td>}
-  </tr>
-))}
-            </tbody>
-          </table>
+          {loading ? (
+            <div className="text-white text-center py-16 text-white/60">Yüklənir...</div>
+          ) : students.length === 0 ? (
+            <div className="text-white text-center py-16 text-white/60">Nəticə tapılmadı</div>
+          ) : (
+            <table className="w-full text-white">
+              <thead>
+                <tr className="bg-white/20 text-left">
+                  <th className="px-6 py-4">№</th>
+                  <th className="px-6 py-4">Ad Soyad Ata adı</th>
+                  <th className="px-6 py-4">Bal 1</th>
+                  {isSubject4 && <th className="px-6 py-4">Bal 2</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {students.map((s, index) => (
+                  <tr
+                    key={s.orderNo}
+                    className={`border-t border-white/20 hover:bg-white/20 transition-colors ${
+                      index % 2 === 0 ? "bg-white/10" : "bg-indigo-900/30"
+                    }`}
+                  >
+                    <td className="px-6 py-4">{s.orderNo}</td>
+                    <td className="px-6 py-4">{s.name} {s.surname} {s.middleName}</td>
+                    <td className="px-6 py-4">{s.result ?? "-"}</td>
+                    {isSubject4 && <td className="px-6 py-4">{s.result2 ?? "-"}</td>}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>

@@ -14,10 +14,12 @@ app.get("/", (req, res) => {
 const subjectsRoutes = require("./subjects");
 const studentsRoutes = require("./students");
 const appealRoutes = require("./appeal");
+const authRoutes = require("./auth");
 
 app.use("/subjects", subjectsRoutes);
 app.use("/students", studentsRoutes);
 app.use("/appeal", appealRoutes);
+app.use("/auth", authRoutes);
 
 // server başlat
 app.listen(5000, () => {
