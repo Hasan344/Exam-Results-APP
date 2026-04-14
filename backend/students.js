@@ -9,6 +9,7 @@ router.get("/", (req, res) => {
     res.json(rows);
   });
 });
+
 router.get("/exam-dates", (req, res) => {
   db.all(
     "SELECT DISTINCT exam_date FROM students WHERE exam_date IS NOT NULL ORDER BY exam_date",
@@ -19,11 +20,10 @@ router.get("/exam-dates", (req, res) => {
     }
   );
 });
+
 router.get("/order/:orderNo", (req, res) => {
   const { orderNo } = req.params;
   const { buildingCode, examDate } = req.query;
-
-  console.log("Axtarış:", orderNo, buildingCode, examDate); // debug üçün
 
   db.get(
     "SELECT * FROM students WHERE orderNo = ? AND building_id = ? AND exam_date = ?",
@@ -40,12 +40,20 @@ router.get("/order/:orderNo", (req, res) => {
 router.get("/results", (req, res) => {
   const { buildingCode, examDate, subjectId } = req.query;
 
-  let query = "SELECT name, middleName, surname, result, result2, subject_id, orderNo FROM students WHERE 1=1";
+  let query = `
+    SELECT
+      name, middleName, surname,
+      result, result2,
+      result_appeal, result_appeal2,
+      subject_id, orderNo
+    FROM students
+    WHERE 1=1
+  `;
   const params = [];
 
   if (buildingCode) { query += " AND building_id = ?"; params.push(buildingCode); }
-  if (examDate) { query += " AND exam_date = ?"; params.push(examDate); }
-  if (subjectId) { query += " AND subject_id = ?"; params.push(subjectId); }
+  if (examDate)     { query += " AND exam_date = ?";   params.push(examDate); }
+  if (subjectId)    { query += " AND subject_id = ?";  params.push(subjectId); }
 
   query += " ORDER BY orderNo";
 
@@ -62,8 +70,6 @@ router.get("/buildings", (req, res) => {
   });
 });
 
-
-// normal result kaydet
 router.post("/:id/result", (req, res) => {
   const { id } = req.params;
   const { subjectId, buildingCode, examDate, result, result2 } = req.body;

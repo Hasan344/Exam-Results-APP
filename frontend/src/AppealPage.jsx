@@ -2,6 +2,37 @@ import { useState } from "react";
 import { useUnlockModal } from "./useUnlockModal";
 import { useToast } from "./Toast";
 
+function ChangeToggle({ value, onChange, disabled }) {
+  return (
+    <div className={`flex rounded-xl overflow-hidden border-2 ${disabled ? "border-gray-100" : "border-gray-200"}`}>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => onChange(false)}
+        className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
+          value === false
+            ? "bg-green-500 text-white"
+            : "bg-gray-50 text-gray-500 hover:bg-gray-100"
+        } ${disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`}
+      >
+        ✓ Dəyişmədi
+      </button>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => onChange(true)}
+        className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
+          value === true
+            ? "bg-indigo-500 text-white"
+            : "bg-gray-50 text-gray-500 hover:bg-gray-100"
+        } ${disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`}
+      >
+        ✎ Dəyişdi
+      </button>
+    </div>
+  );
+}
+
 function AppealPage({ config }) {
   const { building: selectedBuilding, date: selectedDate } = config;
   const { addToast } = useToast();
@@ -9,34 +40,21 @@ function AppealPage({ config }) {
   const [orderNo, setOrderNo] = useState("");
   const [orderLocked, setOrderLocked] = useState(false);
   const [student, setStudent] = useState(null);
-  const [appeal1, setAppeal1] = useState("");
-  const [appeal2, setAppeal2] = useState("");
 
-  const [appeal1Locked, setAppeal1Locked] = useState(false);
-  const [appeal2Locked, setAppeal2Locked] = useState(true);
+  const [changed1, setChanged1] = useState(null);
+  const [appeal1, setAppeal1] = useState("");
+  const [appeal1Saved, setAppeal1Saved] = useState(false);
+
+  const [changed2, setChanged2] = useState(null);
+  const [appeal2, setAppeal2] = useState("");
+  const [appeal2Saved, setAppeal2Saved] = useState(false);
 
   const [successModal, setSuccessModal] = useState(false);
   const [successCallback, setSuccessCallback] = useState(null);
 
   const { openUnlock, UnlockModal } = useUnlockModal();
 
-  const handleUnlockClick = (target) => {
-    openUnlock(target, (t) => {
-      if (t === "appeal1") setAppeal1Locked(false);
-      if (t === "appeal2") setAppeal2Locked(false);
-    });
-  };
-
-  const showSuccess = (callback) => {
-    setSuccessModal(true);
-    setSuccessCallback(() => callback);
-  };
-
-  const handleSuccessOk = () => {
-    setSuccessModal(false);
-    if (successCallback) successCallback();
-    setSuccessCallback(null);
-  };
+  const isSubject4 = student?.subject_id === 4;
 
   const fetchStudent = async () => {
     if (!orderNo) return;
@@ -51,15 +69,16 @@ function AppealPage({ config }) {
       const data = await res.json();
       setStudent(data);
       setOrderLocked(true);
-      setAppeal1(data.result_appeal ?? "");
-      setAppeal2(data.result_appeal2 ?? "");
-      if (data.subject_id === 4) {
-        if (data.result_appeal && data.result_appeal2) { setAppeal1Locked(true); setAppeal2Locked(true); }
-        else if (data.result_appeal && !data.result_appeal2) { setAppeal1Locked(true); setAppeal2Locked(false); }
-        else { setAppeal1Locked(false); setAppeal2Locked(true); }
-      } else {
-        setAppeal1Locked(!!data.result_appeal);
-        setAppeal2Locked(true);
+
+      if (data.result_appeal != null) {
+        setAppeal1Saved(true);
+        setAppeal1(String(data.result_appeal));
+        setChanged1(Number(data.result_appeal) !== Number(data.result));
+      }
+      if (data.result_appeal2 != null) {
+        setAppeal2Saved(true);
+        setAppeal2(String(data.result_appeal2));
+        setChanged2(Number(data.result_appeal2) !== Number(data.result2));
       }
     } catch (err) {
       addToast(err.message, "error");
@@ -71,31 +90,46 @@ function AppealPage({ config }) {
     setOrderNo("");
     setOrderLocked(false);
     setStudent(null);
-    setAppeal1("");
-    setAppeal2("");
-    setAppeal1Locked(false);
-    setAppeal2Locked(true);
+    setChanged1(null); setAppeal1(""); setAppeal1Saved(false);
+    setChanged2(null); setAppeal2(""); setAppeal2Saved(false);
   };
 
-  const saveAppeal = async () => {
-    if (!student) return;
-    try {
-      const res = await fetch(`http://localhost:5000/appeal/${student.orderNo}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          resultAppeal: !appeal1Locked ? (appeal1 || null) : null,
-          resultAppeal2: appeal1Locked && !appeal2Locked ? (appeal2 || null) : null,
-        }),
-      });
-      if (!res.ok) throw new Error("Nəticə yadda saxlanılmadı");
+  const showSuccess = (callback) => {
+    setSuccessModal(true);
+    setSuccessCallback(() => callback);
+  };
 
-      if (student.subject_id === 4) {
-        if (!appeal1Locked) {
-          showSuccess(() => { setAppeal1Locked(true); setAppeal2Locked(false); });
-        } else {
-          showSuccess(() => resetOrder());
-        }
+  const handleChange1 = (val) => {
+    setChanged1(val);
+    setAppeal1(val ? "" : String(student.result ?? ""));
+  };
+
+  const handleChange2 = (val) => {
+    setChanged2(val);
+    setAppeal2(val ? "" : String(student.result2 ?? ""));
+  };
+
+  // API çağırışı — sadə field/value formatı
+  const saveAppealField = async (field, value) => {
+    const res = await fetch(`http://localhost:5000/appeal/${student.orderNo}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ field, value: Number(value) }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.message || "Yadda saxlanılmadı");
+    }
+  };
+
+  const saveBal1 = async () => {
+    if (changed1 === null) { addToast("Zəhmət olmasa seçim edin", "info"); return; }
+    if (changed1 && !appeal1) { addToast("Yeni bal daxil edin", "info"); return; }
+    try {
+      await saveAppealField("result_appeal", appeal1);
+      setAppeal1Saved(true);
+      if (isSubject4 && student.result2 != null && !appeal2Saved) {
+        addToast("Bal 1 qeydə alındı. İndi Bal 2-ni seçin.", "success");
       } else {
         showSuccess(() => resetOrder());
       }
@@ -104,7 +138,29 @@ function AppealPage({ config }) {
     }
   };
 
-  const isSubject4 = student?.subject_id === 4;
+  const saveBal2 = async () => {
+    if (changed2 === null) { addToast("Zəhmət olmasa seçim edin", "info"); return; }
+    if (changed2 && !appeal2) { addToast("Yeni bal daxil edin", "info"); return; }
+    try {
+      await saveAppealField("result_appeal2", appeal2);
+      setAppeal2Saved(true);
+      showSuccess(() => resetOrder());
+    } catch (err) {
+      addToast(err.message, "error");
+    }
+  };
+
+  const handleUnlockBal1 = () => {
+    openUnlock("bal1", () => {
+      setAppeal1Saved(false); setChanged1(null); setAppeal1("");
+    });
+  };
+
+  const handleUnlockBal2 = () => {
+    openUnlock("bal2", () => {
+      setAppeal2Saved(false); setChanged2(null); setAppeal2("");
+    });
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center p-6">
@@ -149,8 +205,9 @@ function AppealPage({ config }) {
 
         {student && (
           <div className="bg-white rounded-3xl p-8 text-black shadow-xl">
+            {/* Student info */}
             <div className="flex items-center gap-6 mb-8 pb-6 border-b border-gray-100">
-              <div className="w-28 h-28 rounded-2xl overflow-hidden bg-gray-100 flex-shrink-0">
+              <div className="w-24 h-24 rounded-2xl overflow-hidden bg-gray-100 flex-shrink-0">
                 {student.photo ? (
                   <img src={student.photo} alt="foto" className="w-full h-full object-cover" />
                 ) : (
@@ -158,7 +215,7 @@ function AppealPage({ config }) {
                 )}
               </div>
               <div className="flex-1">
-                <h2 className="text-2xl font-bold text-gray-900 mb-3">
+                <h2 className="text-xl font-bold text-gray-900 mb-2">
                   {student.name} {student.middleName} {student.surname}
                 </h2>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1">
@@ -172,65 +229,113 @@ function AppealPage({ config }) {
               </div>
             </div>
 
-            <div className="flex flex-col gap-4">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Apellyasiya Nəticəsi</p>
+            {/* BAL 1 */}
+            <div className="flex flex-col gap-3 mb-6">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Apellyasiya — Bal 1</p>
+                {appeal1Saved && (
+                  <button onClick={handleUnlockBal1} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
+                    🔒 Dəyiş
+                  </button>
+                )}
+              </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">Apellyasiya Bal 1</label>
+              <ChangeToggle value={changed1} onChange={handleChange1} disabled={appeal1Saved} />
+
+              {changed1 !== null && (
                 <div className="relative">
                   <input
                     type="number"
                     step="0.1"
-                    placeholder="0.0"
+                    placeholder="Apellyasiya balı"
                     value={appeal1}
-                    disabled={appeal1Locked}
+                    disabled={!changed1 || appeal1Saved}
                     onChange={(e) => setAppeal1(e.target.value)}
-                    className="w-full px-5 py-4 border-2 border-gray-200 rounded-2xl text-lg disabled:bg-gray-50 disabled:text-gray-400 focus:outline-none focus:border-indigo-400 transition-colors"
+                    className="w-full px-5 py-4 border-2 border-gray-200 rounded-2xl text-lg disabled:bg-gray-50 disabled:text-gray-500 focus:outline-none focus:border-indigo-400 transition-colors"
                   />
-                  {appeal1Locked && (
-                    <button
-                      onClick={() => handleUnlockClick("appeal1")}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-yellow-100 transition-colors text-base"
-                    >
-                      🔒
+                  {!changed1 && (
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-green-600 bg-green-50 border border-green-200 px-2 py-1 rounded-lg">
+                      Avtomatik
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {!appeal1Saved && changed1 !== null && (
+                <button onClick={saveBal1} className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold hover:opacity-90 transition-opacity">
+                  Bal 1-i yadda saxla
+                </button>
+              )}
+
+              {appeal1Saved && (
+                <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-green-50 border border-green-200">
+                  <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-sm text-green-700 font-medium">
+                    Bal 1 qeydə alındı — {appeal1}
+                    {!changed1 && <span className="text-green-500 ml-1">(dəyişmədi)</span>}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* BAL 2 */}
+            {isSubject4 && student.result2 != null && (
+              <div className="flex flex-col gap-3 pt-6 border-t border-gray-100">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Apellyasiya — Bal 2</p>
+                  {appeal2Saved && (
+                    <button onClick={handleUnlockBal2} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
+                      🔒 Dəyiş
                     </button>
                   )}
                 </div>
-              </div>
 
-              {isSubject4 && student.result2 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-1">Appeal Bal 2</label>
+                <ChangeToggle value={changed2} onChange={handleChange2} disabled={appeal2Saved || !appeal1Saved} />
+
+                {!appeal1Saved && (
+                  <p className="text-xs text-gray-400 text-center">Əvvəlcə Bal 1-i yadda saxlayın</p>
+                )}
+
+                {changed2 !== null && appeal1Saved && (
                   <div className="relative">
                     <input
                       type="number"
                       step="0.1"
-                      placeholder="0.0"
+                      placeholder="Apellyasiya balı"
                       value={appeal2}
-                      disabled={appeal2Locked}
+                      disabled={!changed2 || appeal2Saved}
                       onChange={(e) => setAppeal2(e.target.value)}
-                      className="w-full px-5 py-4 border-2 border-gray-200 rounded-2xl text-lg disabled:bg-gray-50 disabled:text-gray-400 focus:outline-none focus:border-indigo-400 transition-colors"
+                      className="w-full px-5 py-4 border-2 border-gray-200 rounded-2xl text-lg disabled:bg-gray-50 disabled:text-gray-500 focus:outline-none focus:border-indigo-400 transition-colors"
                     />
-                    {appeal2Locked && appeal1Locked && (
-                      <button
-                        onClick={() => handleUnlockClick("appeal2")}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-yellow-100 transition-colors text-base"
-                      >
-                        🔒
-                      </button>
+                    {!changed2 && (
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-green-600 bg-green-50 border border-green-200 px-2 py-1 rounded-lg">
+                        Avtomatik
+                      </span>
                     )}
                   </div>
-                </div>
-              )}
+                )}
 
-              <button
-                onClick={saveAppeal}
-                disabled={appeal1Locked && (!isSubject4 || appeal2Locked)}
-                className="mt-2 w-full py-4 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-lg font-semibold hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Yadda saxla
-              </button>
-            </div>
+                {appeal1Saved && !appeal2Saved && changed2 !== null && (
+                  <button onClick={saveBal2} className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold hover:opacity-90 transition-opacity">
+                    Bal 2-i yadda saxla
+                  </button>
+                )}
+
+                {appeal2Saved && (
+                  <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-green-50 border border-green-200">
+                    <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span className="text-sm text-green-700 font-medium">
+                      Bal 2 qeydə alındı — {appeal2}
+                      {!changed2 && <span className="text-green-500 ml-1">(dəyişmədi)</span>}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -246,7 +351,11 @@ function AppealPage({ config }) {
             <h2 className="text-xl font-bold text-gray-900">Nəticə qeydə alındı</h2>
             <p className="text-sm text-gray-400">Növbəti abituriyent üçün davam edə bilərsiniz</p>
             <button
-              onClick={handleSuccessOk}
+              onClick={() => {
+                setSuccessModal(false);
+                if (successCallback) successCallback();
+                setSuccessCallback(null);
+              }}
               className="mt-2 w-full py-3 rounded-2xl bg-green-600 text-white font-semibold hover:bg-green-700 transition-colors"
             >
               OK

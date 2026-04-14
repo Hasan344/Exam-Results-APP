@@ -4,36 +4,24 @@ const db = require("./database");
 
 router.put("/:orderNo", (req, res) => {
   const { orderNo } = req.params;
-  const { resultAppeal, resultAppeal2 } = req.body;
+  const { field, value } = req.body;
+  // field: "result_appeal" | "result_appeal2"
+  // value: number
 
-  // Önce öğrencinin subject_id'sini al
-  db.get("SELECT subject_id, result_appeal FROM students WHERE orderNo = ?", [orderNo], (err, student) => {
-    if (err) return res.status(500).json(err);
-    if (!student) return res.status(404).json({ message: "Öğrenci bulunamadı" });
+  const allowed = ["result_appeal", "result_appeal2"];
+  if (!allowed.includes(field)) {
+    return res.status(400).json({ message: "Yanlış sahə adı" });
+  }
 
-    let query = "";
-    let params = [];
-
-    if (student.subject_id === 4) {
-      if (!student.result_appeal) {
-        // İlk kayıt → sadece result_appeal yaz
-        query = "UPDATE students SET result_appeal = ? WHERE orderNo = ?";
-        params = [resultAppeal ?? null, orderNo];
-      } else {
-        // İkinci kayıt → sadece result_appeal2 yaz
-        query = "UPDATE students SET result_appeal2 = ? WHERE orderNo = ?";
-        params = [resultAppeal2 ?? null, orderNo];
-      }
-    } else {
-      query = "UPDATE students SET result_appeal = ? WHERE orderNo = ?";
-      params = [resultAppeal ?? null, orderNo];
+  db.run(
+    `UPDATE students SET ${field} = ? WHERE orderNo = ?`,
+    [value, orderNo],
+    function (err) {
+      if (err) return res.status(500).json({ message: err.message });
+      if (this.changes === 0) return res.status(404).json({ message: "Tələbə tapılmadı" });
+      res.json({ message: "Qeydə alındı ✔" });
     }
-
-    db.run(query, params, function (err) {
-      if (err) return res.status(500).json(err);
-      res.json({ message: "Appeal kaydedildi ✔" });
-    });
-  });
+  );
 });
 
 module.exports = router;
