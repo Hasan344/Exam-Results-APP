@@ -15,11 +15,13 @@ const subjectsRoutes = require("./subjects");
 const studentsRoutes = require("./students");
 const appealRoutes = require("./appeal");
 const authRoutes = require("./auth");
+const sectionsRoutes = require("./sections");
 
 app.use("/subjects", subjectsRoutes);
 app.use("/students", studentsRoutes);
 app.use("/appeal", appealRoutes);
 app.use("/auth", authRoutes);
+app.use("/sections", sectionsRoutes);
 
 // server başlat
 app.listen(5000, () => {

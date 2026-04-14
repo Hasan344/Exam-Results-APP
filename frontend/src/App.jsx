@@ -48,6 +48,11 @@ function AppShell() {
 
         <div className="flex items-center gap-3">
           <div className="hidden sm:flex items-center gap-2 text-xs text-white/40">
+            {adminConfig?.section && (
+              <span className="px-2 py-1 rounded-lg bg-white/5 border border-white/10">
+                {adminConfig.section.name}
+              </span>
+            )}
             <span className="px-2 py-1 rounded-lg bg-white/5 border border-white/10">
               {adminConfig?.building?.name}
             </span>

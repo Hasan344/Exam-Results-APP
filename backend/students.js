@@ -2,7 +2,6 @@ const express = require("express");
 const router = express.Router();
 const db = require("./database");
 
-// tüm öğrenciler
 router.get("/", (req, res) => {
   db.all("SELECT * FROM students ORDER BY orderNo", [], (err, rows) => {
     if (err) return res.status(500).json(err);
@@ -42,20 +41,22 @@ router.get("/results", (req, res) => {
 
   let query = `
     SELECT
-      name, middleName, surname,
-      result, result2,
-      result_appeal, result_appeal2,
-      subject_id, orderNo
-    FROM students
+      s.name, s.middleName, s.surname,
+      s.result, s.result2, s.result3,
+      s.result_appeal, s.result_appeal2,
+      s.subject_id, s.orderNo,
+      sub.sectionId
+    FROM students s
+    LEFT JOIN subjects sub ON s.subject_id = sub.id
     WHERE 1=1
   `;
   const params = [];
 
-  if (buildingCode) { query += " AND building_id = ?"; params.push(buildingCode); }
-  if (examDate)     { query += " AND exam_date = ?";   params.push(examDate); }
-  if (subjectId)    { query += " AND subject_id = ?";  params.push(subjectId); }
+  if (buildingCode) { query += " AND s.building_id = ?"; params.push(buildingCode); }
+  if (examDate)     { query += " AND s.exam_date = ?";   params.push(examDate); }
+  if (subjectId)    { query += " AND s.subject_id = ?";  params.push(subjectId); }
 
-  query += " ORDER BY orderNo";
+  query += " ORDER BY s.orderNo";
 
   db.all(query, params, (err, rows) => {
     if (err) return res.status(500).json(err);
@@ -70,28 +71,23 @@ router.get("/buildings", (req, res) => {
   });
 });
 
+// field: "result" | "result2" | "result3"
+// value: number
 router.post("/:id/result", (req, res) => {
   const { id } = req.params;
-  const { subjectId, buildingCode, examDate, result, result2 } = req.body;
+  const { subjectId, buildingCode, examDate, field, value } = req.body;
 
-  let query = "";
-  let params = [];
-
-  if (subjectId === 4) {
-    if (result && !result2) {
-      query = "UPDATE students SET result = ?, subject_id = ?, building_id = ?, exam_date = ? WHERE id = ?";
-      params = [result, subjectId, buildingCode, examDate, id];
-    } else {
-      query = "UPDATE students SET result2 = ?, subject_id = ?, building_id = ?, exam_date = ? WHERE id = ?";
-      params = [result2, subjectId, buildingCode, examDate, id];
-    }
-  } else {
-    query = "UPDATE students SET result = ?, subject_id = ?, building_id = ?, exam_date = ? WHERE id = ?";
-    params = [result, subjectId, buildingCode, examDate, id];
+  const allowed = ["result", "result2", "result3"];
+  if (!allowed.includes(field)) {
+    return res.status(400).json({ message: "Yanlış sahə adı" });
   }
+
+  const query = `UPDATE students SET ${field} = ?, subject_id = ?, building_id = ?, exam_date = ? WHERE id = ?`;
+  const params = [value, subjectId, buildingCode, examDate, id];
 
   db.run(query, params, function (err) {
     if (err) return res.status(500).json(err);
+    if (this.changes === 0) return res.status(404).json({ message: "Tələbə tapılmadı" });
     res.json({ message: "Kaydedildi ✔" });
   });
 });
