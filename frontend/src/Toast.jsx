@@ -27,6 +27,22 @@ export function ToastProvider({ children }) {
   );
 }
 
+export function useToast() {
+  const ctx = useContext(ToastContext);
+  if (ctx === null) {
+    // Əgər bu xətanı görürsənsə, deməli useToast() bir komponentdə
+    // ToastProvider-dən kənarda çağırılıb, və ya fərqli ToastContext
+    // instansiyası import edilib (məsələn, yanlış göstərilmiş path,
+    // Git worktree qovluğu, və ya faylın birdən çox kopyası).
+    throw new Error(
+      "useToast must be used within a <ToastProvider>. " +
+      "Check that Toast is imported from the correct path " +
+      "(e.g. './Toast') and that there is only one ToastContext instance."
+    );
+  }
+  return ctx;
+}
+
 function Toast({ toast, onRemove }) {
   const icons = {
     error: (
@@ -54,29 +70,18 @@ function Toast({ toast, onRemove }) {
 
   return (
     <div
-      className={`pointer-events-auto flex items-center gap-4 px-6 py-4 rounded-2xl bg-gray-900/95 border ${borders[toast.type]} backdrop-blur-sm shadow-2xl w-max max-w-lg`}
-      style={{ animation: "dropIn 0.3s ease" }}
+      className={`pointer-events-auto flex items-center gap-3 px-5 py-3 rounded-2xl bg-gray-900/95 backdrop-blur-sm border ${borders[toast.type] || borders.error} shadow-2xl min-w-[280px] max-w-md animate-slideDown`}
     >
-      {icons[toast.type]}
-      <p className="text-white text-base font-medium">{toast.message}</p>
+      {icons[toast.type] || icons.error}
+      <span className="text-white text-sm font-medium flex-1">{toast.message}</span>
       <button
         onClick={() => onRemove(toast.id)}
-        className="text-white/30 hover:text-white/70 transition-colors ml-2"
+        className="text-white/40 hover:text-white transition-colors"
       >
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
         </svg>
       </button>
-      <style>{`
-        @keyframes dropIn {
-          from { transform: translateY(-20px); opacity: 0; }
-          to   { transform: translateY(0);     opacity: 1; }
-        }
-      `}</style>
     </div>
   );
-}
-
-export function useToast() {
-  return useContext(ToastContext);
 }

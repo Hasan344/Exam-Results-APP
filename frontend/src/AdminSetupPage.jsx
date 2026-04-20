@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "../../.claude/worktrees/condescending-carson-518c9a/frontend/src/AuthContext";
+import { useAuth } from "./AuthContext";
 
 export default function AdminSetupPage() {
   const { confirmSetup, adminLogout } = useAuth();

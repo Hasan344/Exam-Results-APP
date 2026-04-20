@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useUnlockModal } from "../../.claude/worktrees/condescending-carson-518c9a/frontend/src/useUnlockModal";
-import { useToast } from "../../.claude/worktrees/condescending-carson-518c9a/frontend/src/Toast";
+import { useUnlockModal } from "./useUnlockModal";
+import { useToast } from "./Toast";
 
 function MainPage({ config }) {
   const {

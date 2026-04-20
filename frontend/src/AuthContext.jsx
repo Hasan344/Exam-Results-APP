@@ -60,5 +60,17 @@ export function AuthProvider({ children }) {
 }
 
 export function useAuth() {
-  return useContext(AuthContext);
+  const ctx = useContext(AuthContext);
+  if (ctx === null) {
+    // Əgər bu xətanı görürsənsə, deməli useAuth() bir komponentdə
+    // AuthProvider-dən kənarda çağırılıb, və ya fərqli AuthContext
+    // instansiyası import edilib (məsələn, yanlış göstərilmiş path,
+    // Git worktree qovluğu, və ya faylın birdən çox kopyası).
+    throw new Error(
+      "useAuth must be used within an <AuthProvider>. " +
+      "Check that AuthContext is imported from the correct path " +
+      "(e.g. './AuthContext') and that there is only one AuthContext instance."
+    );
+  }
+  return ctx;
 }
