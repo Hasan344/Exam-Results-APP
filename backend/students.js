@@ -57,7 +57,6 @@ router.get("/results", (req, res) => {
 
   if (buildingCode) { query += " AND s.building_id = ?"; params.push(buildingCode); }
   if (examDate)     { query += " AND s.exam_date = ?";   params.push(examDate); }
-  if (subjectId)    { query += " AND s.subject_id = ?";  params.push(subjectId); }
 
   query += " ORDER BY s.orderNo";
 
