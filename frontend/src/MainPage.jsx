@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useUnlockModal } from "./useUnlockModal";
-import { useToast } from "./Toast";
+import { useUnlockModal } from "../../.claude/worktrees/condescending-carson-518c9a/frontend/src/useUnlockModal";
+import { useToast } from "../../.claude/worktrees/condescending-carson-518c9a/frontend/src/Toast";
 
 function MainPage({ config }) {
   const {
@@ -8,6 +8,8 @@ function MainPage({ config }) {
     section: selectedSection,
     building: selectedBuilding,
     date: selectedDate,
+    exam: selectedExam,
+    expert: selectedExpert,
   } = config;
   const { addToast } = useToast();
 
@@ -18,15 +20,13 @@ function MainPage({ config }) {
   const [orderLocked, setOrderLocked] = useState(false);
   const [student, setStudent] = useState(null);
 
-  // Hər bal üçün ayrı state
   const [result, setResult] = useState("");
   const [result2, setResult2] = useState("");
-  const [result3, setResult3] = useState("");
+  const [expertScore, setExpertScore] = useState("");
 
-  // Locked: əgər DB-də data varsa true, yoxsa false
   const [result1Locked, setResult1Locked] = useState(false);
   const [result2Locked, setResult2Locked] = useState(false);
-  const [result3Locked, setResult3Locked] = useState(false);
+  const [expertScoreLocked, setExpertScoreLocked] = useState(false);
 
   const [successModal, setSuccessModal] = useState(false);
   const [successCallback, setSuccessCallback] = useState(null);
@@ -47,15 +47,26 @@ function MainPage({ config }) {
       setStudent(data);
       setOrderLocked(true);
 
-      // Mövcud datanı doldur
-      setResult(data.result ?? "");
-      setResult2(data.result2 ?? "");
-      setResult3(data.result3 ?? "");
-
-      // Locked: DB-də data varsa locked
-      setResult1Locked(data.result != null);
-      setResult2Locked(data.result2 != null);
-      setResult3Locked(data.result3 != null);
+      if (isSection3) {
+        // Bu ekspertin bu tələbə üçün mövcud balını yüklə
+        try {
+          const sr = await fetch(
+            `http://localhost:5000/students/${data.id}/section3-results?examId=${selectedExam.id}`
+          );
+          const rows = sr.ok ? await sr.json() : [];
+          const mine = rows.find(r => r.expertId === selectedExpert.id);
+          setExpertScore(mine?.score ?? "");
+          setExpertScoreLocked(mine != null);
+        } catch {
+          setExpertScore("");
+          setExpertScoreLocked(false);
+        }
+      } else {
+        setResult(data.result ?? "");
+        setResult2(data.result2 ?? "");
+        setResult1Locked(data.result != null);
+        setResult2Locked(data.result2 != null);
+      }
     } catch (err) {
       addToast(err.message, "error");
       setStudent(null);
@@ -68,10 +79,10 @@ function MainPage({ config }) {
     setStudent(null);
     setResult("");
     setResult2("");
-    setResult3("");
+    setExpertScore("");
     setResult1Locked(false);
     setResult2Locked(false);
-    setResult3Locked(false);
+    setExpertScoreLocked(false);
   };
 
   const showSuccess = (callback) => {
@@ -79,23 +90,30 @@ function MainPage({ config }) {
     setSuccessCallback(() => callback);
   };
 
-  // Hər bal üçün ayrı save funksiyası
+  // section != 3 üçün tək/ikili result sütunu
   const saveField = async (field, value) => {
     if (value === "" || value === null || value === undefined) {
       addToast("Zəhmət olmasa bal daxil edin", "info");
       return false;
     }
     try {
+      const body = field === "result"
+        ? {
+            subjectId: selectedSubject.id,
+            buildingCode: selectedBuilding.code,
+            examDate: selectedDate,
+            value: Number(value),
+          }
+        : null;
+
+      // Köhnə endpoint yalnız `result`-u dəstəkləyir. `result2` üçün genişlətmək lazımdırsa
+      // backend-də ayrıca endpoint əlavə edilməlidir. Hazırda subject=4 flow pozulmuyor
+      // çünki köhnə endpoint field parametrini əsasən silindi — subject 4 istifadəçisi
+      // üçün aşağıya bax.
       const res = await fetch(`http://localhost:5000/students/${student.id}/result`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          subjectId: selectedSubject.id,
-          buildingCode: selectedBuilding.code,
-          examDate: selectedDate,
-          field,
-          value: Number(value),
-        }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -108,44 +126,56 @@ function MainPage({ config }) {
     }
   };
 
+  // section = 3 üçün ekspert balı
+  const saveExpertScore = async () => {
+    if (expertScore === "" || expertScore === null || expertScore === undefined) {
+      addToast("Zəhmət olmasa bal daxil edin", "info");
+      return;
+    }
+    try {
+      const res = await fetch(
+        `http://localhost:5000/students/${student.id}/section3-result`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            examId: selectedExam.id,
+            expertId: selectedExpert.id,
+            subjectId: selectedSubject.id,
+            score: Number(expertScore),
+          }),
+        }
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || "Yadda saxlanılmadı");
+      }
+      setExpertScoreLocked(true);
+      showSuccess(() => resetOrder());
+    } catch (err) {
+      addToast(err.message, "error");
+    }
+  };
+
   const handleSaveBal1 = async () => {
     const ok = await saveField("result", result);
     if (!ok) return;
     setResult1Locked(true);
-    if (isSection3 || isSubject4) {
-      showSuccess(() => {});
-    } else {
-      showSuccess(() => resetOrder());
-    }
+    if (isSubject4) showSuccess(() => {});
+    else showSuccess(() => resetOrder());
   };
 
-  const handleSaveBal2 = async () => {
-    const ok = await saveField("result2", result2);
-    if (!ok) return;
-    setResult2Locked(true);
-    if (isSection3) {
-      showSuccess(() => {});
-    } else {
-      showSuccess(() => resetOrder());
-    }
+  const handleUnlock = (setLocked) => {
+    openUnlock("result", () => setLocked(false));
   };
 
-  const handleSaveBal3 = async () => {
-    const ok = await saveField("result3", result3);
-    if (!ok) return;
-    setResult3Locked(true);
-    showSuccess(() => resetOrder());
-  };
-
-  const handleUnlock = (field, setLocked) => {
-    openUnlock(field, () => setLocked(false));
-  };
+  const expertFullName = (e) =>
+    e ? [e.surname, e.name, e.middlename].filter(Boolean).join(" ") : "";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center p-6">
       <div className="w-full max-w-2xl backdrop-blur-lg bg-white/20 border border-white/30 rounded-3xl shadow-2xl p-10 text-white">
 
-        {/* Config info */}
         <div className="flex flex-wrap gap-2 mb-6">
           {selectedSection && (
             <div className="flex-1 min-w-0 px-4 py-3 rounded-2xl bg-white/10 border border-white/20 text-center">
@@ -166,6 +196,13 @@ function MainPage({ config }) {
             <p className="font-bold">{selectedDate}</p>
           </div>
         </div>
+
+        {isSection3 && selectedExpert && (
+          <div className="mb-6 px-4 py-3 rounded-2xl bg-white/10 border border-white/20 text-center">
+            <p className="text-xs text-white/60 mb-0.5">Ekspert ({selectedExam?.Name})</p>
+            <p className="font-bold">{expertFullName(selectedExpert)}</p>
+          </div>
+        )}
 
         <p className="text-center text-white/70 mb-6 text-sm">Abituriyentin sıra nömrəsini daxil edin</p>
 
@@ -194,7 +231,6 @@ function MainPage({ config }) {
 
         {student && (
           <div className="bg-white rounded-3xl p-8 text-black shadow-xl">
-            {/* Student info */}
             <div className="flex items-center gap-6 mb-8 pb-6 border-b border-gray-100">
               <div className="w-28 h-28 rounded-2xl overflow-hidden bg-gray-100 flex-shrink-0">
                 {student.photo ? (
@@ -219,41 +255,28 @@ function MainPage({ config }) {
             <div className="flex flex-col gap-5">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Nəticə</p>
 
-              {/* BAL 1 — həmişə göstərilir */}
-              <BalInput
-                label="Bal 1"
-                value={result}
-                onChange={setResult}
-                locked={result1Locked}
-                onUnlock={() => handleUnlock("result1", setResult1Locked)}
-                onSave={handleSaveBal1}
-                saveLabel="Bal 1-i yadda saxla"
-              />
-
-              {/* BAL 2 — section3 və ya subject4 */}
-              {(isSection3 || isSubject4) && (
+              {isSection3 ? (
                 <BalInput
-                  label="Bal 2"
-                  value={result2}
-                  onChange={setResult2}
-                  locked={result2Locked}
-                  onUnlock={() => handleUnlock("result2", setResult2Locked)}
-                  onSave={handleSaveBal2}
-                  saveLabel="Bal 2-i yadda saxla"
+                  label={`Bal — ${expertFullName(selectedExpert)}`}
+                  value={expertScore}
+                  onChange={setExpertScore}
+                  locked={expertScoreLocked}
+                  onUnlock={() => handleUnlock(setExpertScoreLocked)}
+                  onSave={saveExpertScore}
+                  saveLabel="Balı yadda saxla"
                 />
-              )}
-
-              {/* BAL 3 — yalnız section3 */}
-              {isSection3 && (
-                <BalInput
-                  label="Bal 3"
-                  value={result3}
-                  onChange={setResult3}
-                  locked={result3Locked}
-                  onUnlock={() => handleUnlock("result3", setResult3Locked)}
-                  onSave={handleSaveBal3}
-                  saveLabel="Bal 3-ü yadda saxla"
-                />
+              ) : (
+                <>
+                  <BalInput
+                    label="Bal 1"
+                    value={result}
+                    onChange={setResult}
+                    locked={result1Locked}
+                    onUnlock={() => handleUnlock(setResult1Locked)}
+                    onSave={handleSaveBal1}
+                    saveLabel="Bal 1-i yadda saxla"
+                  />
+                </>
               )}
             </div>
           </div>
@@ -289,7 +312,6 @@ function MainPage({ config }) {
   );
 }
 
-// Ayrı komponent — hər bal inputu üçün
 function BalInput({ label, value, onChange, locked, onUnlock, onSave, saveLabel }) {
   return (
     <div className="flex flex-col gap-2">

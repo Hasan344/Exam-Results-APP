@@ -16,12 +16,16 @@ const studentsRoutes = require("./students");
 const appealRoutes = require("./appeal");
 const authRoutes = require("./auth");
 const sectionsRoutes = require("./sections");
+const expertsRoutes = require("./experts");
+const examsRoutes = require("./exams");
 
 app.use("/subjects", subjectsRoutes);
 app.use("/students", studentsRoutes);
 app.use("/appeal", appealRoutes);
 app.use("/auth", authRoutes);
 app.use("/sections", sectionsRoutes);
+app.use("/experts", expertsRoutes);
+app.use("/exams", examsRoutes);
 
 // server başlat
 app.listen(5000, () => {
