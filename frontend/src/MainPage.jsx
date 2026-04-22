@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useUnlockModal } from "./useUnlockModal";
 import { useToast } from "./Toast";
 
@@ -9,7 +9,6 @@ function MainPage({ config }) {
     building: selectedBuilding,
     date: selectedDate,
     exam: selectedExam,
-    expert: selectedExpert,
   } = config;
   const { addToast } = useToast();
 
@@ -22,16 +21,31 @@ function MainPage({ config }) {
 
   const [result, setResult] = useState("");
   const [result2, setResult2] = useState("");
-  const [expertScore, setExpertScore] = useState("");
+
+  // section=3 üçün: imtahandakı bütün ekspertlər və onların balları
+  const [examExperts, setExamExperts] = useState([]);
+  const [expertScores, setExpertScores] = useState({});      // { [expertId]: "score" }
+  const [expertScoreLocks, setExpertScoreLocks] = useState({}); // { [expertId]: bool }
 
   const [result1Locked, setResult1Locked] = useState(false);
   const [result2Locked, setResult2Locked] = useState(false);
-  const [expertScoreLocked, setExpertScoreLocked] = useState(false);
 
   const [successModal, setSuccessModal] = useState(false);
   const [successCallback, setSuccessCallback] = useState(null);
 
   const { openUnlock, UnlockModal } = useUnlockModal();
+
+  // section=3 olanda imtahanın ekspertlərini yüklə
+  useEffect(() => {
+    if (!isSection3 || !selectedExam) {
+      setExamExperts([]);
+      return;
+    }
+    fetch(`http://localhost:5000/exams/${selectedExam.id}/experts`)
+      .then(r => r.json())
+      .then(data => setExamExperts(Array.isArray(data) ? data : []))
+      .catch(() => setExamExperts([]));
+  }, [isSection3, selectedExam]);
 
   const fetchStudent = async () => {
     if (!orderNo) return;
@@ -48,18 +62,22 @@ function MainPage({ config }) {
       setOrderLocked(true);
 
       if (isSection3) {
-        // Bu ekspertin bu tələbə üçün mövcud balını yüklə
         try {
           const sr = await fetch(
             `http://localhost:5000/students/${data.id}/section3-results?examId=${selectedExam.id}`
           );
           const rows = sr.ok ? await sr.json() : [];
-          const mine = rows.find(r => r.expertId === selectedExpert.id);
-          setExpertScore(mine?.score ?? "");
-          setExpertScoreLocked(mine != null);
+          const scoreMap = {};
+          const lockMap = {};
+          for (const row of rows) {
+            scoreMap[row.expertId] = row.score ?? "";
+            lockMap[row.expertId] = true;
+          }
+          setExpertScores(scoreMap);
+          setExpertScoreLocks(lockMap);
         } catch {
-          setExpertScore("");
-          setExpertScoreLocked(false);
+          setExpertScores({});
+          setExpertScoreLocks({});
         }
       } else {
         setResult(data.result ?? "");
@@ -79,10 +97,10 @@ function MainPage({ config }) {
     setStudent(null);
     setResult("");
     setResult2("");
-    setExpertScore("");
+    setExpertScores({});
+    setExpertScoreLocks({});
     setResult1Locked(false);
     setResult2Locked(false);
-    setExpertScoreLocked(false);
   };
 
   const showSuccess = (callback) => {
@@ -90,7 +108,6 @@ function MainPage({ config }) {
     setSuccessCallback(() => callback);
   };
 
-  // section != 3 üçün tək/ikili result sütunu
   const saveField = async (field, value) => {
     if (value === "" || value === null || value === undefined) {
       addToast("Zəhmət olmasa bal daxil edin", "info");
@@ -106,10 +123,6 @@ function MainPage({ config }) {
           }
         : null;
 
-      // Köhnə endpoint yalnız `result`-u dəstəkləyir. `result2` üçün genişlətmək lazımdırsa
-      // backend-də ayrıca endpoint əlavə edilməlidir. Hazırda subject=4 flow pozulmuyor
-      // çünki köhnə endpoint field parametrini əsasən silindi — subject 4 istifadəçisi
-      // üçün aşağıya bax.
       const res = await fetch(`http://localhost:5000/students/${student.id}/result`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -126,31 +139,43 @@ function MainPage({ config }) {
     }
   };
 
-  // section = 3 üçün ekspert balı
-  const saveExpertScore = async () => {
-    if (expertScore === "" || expertScore === null || expertScore === undefined) {
-      addToast("Zəhmət olmasa bal daxil edin", "info");
+  // section=3 — bütün ekspert ballarını eyni anda yadda saxla
+  const saveAllExpertScores = async () => {
+    if (examExperts.length === 0) {
+      addToast("Bu imtahana heç bir ekspert təyin olunmayıb", "info");
       return;
     }
+    const missing = examExperts.filter(
+      e => expertScores[e.id] === undefined || expertScores[e.id] === "" || expertScores[e.id] === null
+    );
+    if (missing.length > 0) {
+      addToast(`Bütün ekspertlərin balı daxil edilməlidir (${missing.length} boş qalıb)`, "info");
+      return;
+    }
+
     try {
-      const res = await fetch(
-        `http://localhost:5000/students/${student.id}/section3-result`,
-        {
+      const requests = examExperts.map(e =>
+        fetch(`http://localhost:5000/students/${student.id}/section3-result`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             examId: selectedExam.id,
-            expertId: selectedExpert.id,
+            expertId: e.id,
             subjectId: selectedSubject.id,
-            score: Number(expertScore),
+            score: Number(expertScores[e.id]),
           }),
-        }
+        })
       );
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || "Yadda saxlanılmadı");
+      const responses = await Promise.all(requests);
+      for (const r of responses) {
+        if (!r.ok) {
+          const data = await r.json().catch(() => ({}));
+          throw new Error(data.message || "Bəzi ballar yadda saxlanmadı");
+        }
       }
-      setExpertScoreLocked(true);
+      const newLocks = {};
+      for (const e of examExperts) newLocks[e.id] = true;
+      setExpertScoreLocks(newLocks);
       showSuccess(() => resetOrder());
     } catch (err) {
       addToast(err.message, "error");
@@ -169,8 +194,35 @@ function MainPage({ config }) {
     openUnlock("result", () => setLocked(false));
   };
 
+  const handleUnlockExpert = (expertId) => {
+    openUnlock("result", () => {
+      setExpertScoreLocks(prev => ({ ...prev, [expertId]: false }));
+    });
+  };
+
+  const handleExpertScoreChange = (expertId, value) => {
+    setExpertScores(prev => ({ ...prev, [expertId]: value }));
+  };
+
   const expertFullName = (e) =>
     e ? [e.surname, e.name, e.middlename].filter(Boolean).join(" ") : "";
+
+  // Orta bal (yalnız UI)
+  const avgInfo = (() => {
+    if (!isSection3 || examExperts.length === 0) return null;
+    const nums = examExperts
+      .map(e => expertScores[e.id])
+      .filter(v => v !== undefined && v !== "" && v !== null && !isNaN(Number(v)))
+      .map(Number);
+    if (nums.length === 0) return null;
+    const sum = nums.reduce((a, b) => a + b, 0);
+    return { avg: sum / nums.length, count: nums.length, total: examExperts.length, sum };
+  })();
+
+  const allExpertScoresSaved =
+    isSection3 &&
+    examExperts.length > 0 &&
+    examExperts.every(e => expertScoreLocks[e.id]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center p-6">
@@ -197,10 +249,10 @@ function MainPage({ config }) {
           </div>
         </div>
 
-        {isSection3 && selectedExpert && (
+        {isSection3 && selectedExam && (
           <div className="mb-6 px-4 py-3 rounded-2xl bg-white/10 border border-white/20 text-center">
-            <p className="text-xs text-white/60 mb-0.5">Ekspert ({selectedExam?.Name})</p>
-            <p className="font-bold">{expertFullName(selectedExpert)}</p>
+            <p className="text-xs text-white/60 mb-0.5">İmtahan</p>
+            <p className="font-bold">{selectedExam.Name} ({examExperts.length} ekspert)</p>
           </div>
         )}
 
@@ -256,15 +308,47 @@ function MainPage({ config }) {
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Nəticə</p>
 
               {isSection3 ? (
-                <BalInput
-                  label={`Bal — ${expertFullName(selectedExpert)}`}
-                  value={expertScore}
-                  onChange={setExpertScore}
-                  locked={expertScoreLocked}
-                  onUnlock={() => handleUnlock(setExpertScoreLocked)}
-                  onSave={saveExpertScore}
-                  saveLabel="Balı yadda saxla"
-                />
+                examExperts.length === 0 ? (
+                  <p className="text-sm text-gray-500 px-4 py-3 rounded-xl bg-gray-50 border border-gray-200">
+                    Bu imtahana heç bir ekspert təyin olunmayıb
+                  </p>
+                ) : (
+                  <>
+                    {examExperts.map((e) => (
+                      <BalInput
+                        key={e.id}
+                        label={`Bal — ${expertFullName(e)}`}
+                        value={expertScores[e.id] ?? ""}
+                        onChange={(v) => handleExpertScoreChange(e.id, v)}
+                        locked={!!expertScoreLocks[e.id]}
+                        onUnlock={() => handleUnlockExpert(e.id)}
+                        hideSaveButton
+                      />
+                    ))}
+
+                    {/* Orta bal göstəricisi */}
+                    {avgInfo && (
+                      <div className="flex items-center justify-between px-5 py-4 rounded-2xl bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100">
+                        <div>
+                          <p className="text-xs text-gray-500 uppercase tracking-widest">Orta bal</p>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            {avgInfo.count}/{avgInfo.total} ekspert · cəm: {avgInfo.sum.toFixed(2)}
+                          </p>
+                        </div>
+                        <p className="text-3xl font-bold text-indigo-600">{avgInfo.avg.toFixed(2)}</p>
+                      </div>
+                    )}
+
+                    {!allExpertScoresSaved && (
+                      <button
+                        onClick={saveAllExpertScores}
+                        className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold hover:opacity-90 transition-opacity"
+                      >
+                        Bütün balları yadda saxla
+                      </button>
+                    )}
+                  </>
+                )
               ) : (
                 <>
                   <BalInput
@@ -312,7 +396,7 @@ function MainPage({ config }) {
   );
 }
 
-function BalInput({ label, value, onChange, locked, onUnlock, onSave, saveLabel }) {
+function BalInput({ label, value, onChange, locked, onUnlock, onSave, saveLabel, hideSaveButton }) {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
@@ -335,7 +419,7 @@ function BalInput({ label, value, onChange, locked, onUnlock, onSave, saveLabel 
         onChange={(e) => onChange(e.target.value)}
         className="w-full px-5 py-4 border-2 border-gray-200 rounded-2xl text-lg disabled:bg-gray-50 disabled:text-gray-400 focus:outline-none focus:border-indigo-400 transition-colors"
       />
-      {!locked && (
+      {!locked && !hideSaveButton && onSave && (
         <button
           onClick={onSave}
           className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold hover:opacity-90 transition-opacity"

@@ -9,14 +9,12 @@ export default function AdminSetupPage() {
   const [examDates, setExamDates] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [exams, setExams] = useState([]);
-  const [examExperts, setExamExperts] = useState([]);
 
   const [selectedSection, setSelectedSection] = useState(null);
   const [selectedSubject, setSelectedSubject] = useState(null);
   const [selectedBuilding, setSelectedBuilding] = useState(null);
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedExam, setSelectedExam] = useState(null);
-  const [selectedExpert, setSelectedExpert] = useState(null);
   const [mode, setMode] = useState("main"); // "main" | "appeal"
 
   const [error, setError] = useState("");
@@ -58,27 +56,12 @@ export default function AdminSetupPage() {
       .then(r => r.json()).then(setExams).catch(() => {});
   }, [isSection3, mode]);
 
-  // Exam seçiləndə bu imtahana təyin olunmuş ekspertləri yüklə
-  useEffect(() => {
-    if (!selectedExam) {
-      setExamExperts([]);
-      setSelectedExpert(null);
-      return;
-    }
-    fetch(`http://localhost:5000/exams/${selectedExam.id}/experts`)
-      .then(r => r.json()).then(data => {
-        setExamExperts(data);
-        setSelectedExpert(null);
-      }).catch(() => {});
-  }, [selectedExam]);
-
   const handleConfirm = () => {
     if (mode === "main") {
       if (!selectedSection) { setError("Zəhmət olmasa bölmə seçin"); return; }
       if (!selectedSubject) { setError("Zəhmət olmasa fənn seçin"); return; }
       if (isSection3) {
-        if (!selectedExam)   { setError("Zəhmət olmasa imtahan seçin"); return; }
-        if (!selectedExpert) { setError("Zəhmət olmasa ekspert seçin"); return; }
+        if (!selectedExam) { setError("Zəhmət olmasa imtahan seçin"); return; }
       }
     }
     if (!selectedBuilding) { setError("Zəhmət olmasa bina seçin"); return; }
@@ -91,12 +74,8 @@ export default function AdminSetupPage() {
       building: selectedBuilding,
       date: selectedDate,
       exam: mode === "main" && isSection3 ? selectedExam : null,
-      expert: mode === "main" && isSection3 ? selectedExpert : null,
     });
   };
-
-  const expertFullName = (e) =>
-    [e.surname, e.name, e.middlename].filter(Boolean).join(" ");
 
   return (
     <div className="min-h-screen bg-gray-950 flex items-center justify-center p-6">
@@ -204,32 +183,6 @@ export default function AdminSetupPage() {
                   <option value="" disabled className="bg-gray-900">İmtahan seçin</option>
                   {exams.map(x => (
                     <option key={x.id} value={x.id} className="bg-gray-900">{x.Name} — {x.Date}</option>
-                  ))}
-                </select>
-              )}
-            </div>
-          )}
-
-          {/* section=3 üçün ekspert seçimi */}
-          {mode === "main" && isSection3 && selectedExam && (
-            <div>
-              <label className="block text-xs font-medium text-white/50 uppercase tracking-widest mb-2">Ekspert</label>
-              {examExperts.length === 0 ? (
-                <p className="text-white/30 text-sm px-4 py-3 rounded-xl bg-white/5 border border-white/10">
-                  Bu imtahana heç bir ekspert təyin olunmayıb
-                </p>
-              ) : (
-                <select
-                  value={selectedExpert?.id ?? ""}
-                  onChange={(e) => {
-                    setSelectedExpert(examExperts.find(x => x.id === Number(e.target.value)) || null);
-                    setError("");
-                  }}
-                  className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-white/30 transition-colors text-sm appearance-none"
-                >
-                  <option value="" disabled className="bg-gray-900">Ekspert seçin</option>
-                  {examExperts.map(e => (
-                    <option key={e.id} value={e.id} className="bg-gray-900">{expertFullName(e)}</option>
                   ))}
                 </select>
               )}
