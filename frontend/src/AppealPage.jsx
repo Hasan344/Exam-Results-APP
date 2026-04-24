@@ -4,7 +4,7 @@ import { useToast } from "./Toast";
 
 function ChangeToggle({ value, onChange, disabled }) {
   return (
-    <div className={`flex rounded-xl overflow-hidden border-2 ${disabled ? "border-gray-100" : "border-gray-200"}`}>
+    <div className="flex rounded-2xl overflow-hidden border border-gray-200">
       <button
         type="button"
         disabled={disabled}
@@ -109,7 +109,6 @@ function AppealPage({ config }) {
     setAppeal2(val ? "" : String(student.result2 ?? ""));
   };
 
-  // API çağırışı — sadə field/value formatı
   const saveAppealField = async (field, value) => {
     const res = await fetch(`http://localhost:5000/appeal/${student.orderNo}`, {
       method: "PUT",
@@ -162,60 +161,76 @@ function AppealPage({ config }) {
     });
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center p-6">
-      <div className="w-full max-w-2xl backdrop-blur-lg bg-white/20 border border-white/30 rounded-3xl shadow-2xl p-10 text-white">
+  // Foto URL-i qur (backend foto endpoint-i ilə)
+  const photoSrc = student
+    ? (student.photo_path
+        ? `http://localhost:5000/students/${student.id}/photo`
+        : student.photo || null)
+    : null;
 
-        <div className="flex flex-wrap gap-2 mb-6">
-          <div className="flex-1 min-w-0 px-4 py-3 rounded-2xl bg-white/10 border border-white/20 text-center">
-            <p className="text-xs text-white/60 mb-0.5">Bina</p>
-            <p className="font-bold truncate">{selectedBuilding?.name}</p>
+  return (
+    // ⬇️ min-h-screen + items-center → h-screen + items-start + p-4
+    <div className="h-screen overflow-hidden bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-start justify-center p-4">
+      {/* ⬇️ max-w-2xl → max-w-4xl, p-10 → p-5 */}
+      <div className="w-full max-w-4xl backdrop-blur-lg bg-white/20 border border-white/30 rounded-3xl shadow-2xl p-5 text-white">
+
+        <div className="flex flex-wrap gap-2 mb-3">
+          <div className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-center">
+            <p className="text-[10px] text-white/60 mb-0.5">Bina</p>
+            <p className="text-sm font-bold truncate">{selectedBuilding?.name}</p>
           </div>
-          <div className="flex-1 min-w-0 px-4 py-3 rounded-2xl bg-white/10 border border-white/20 text-center">
-            <p className="text-xs text-white/60 mb-0.5">Tarix</p>
-            <p className="font-bold">{selectedDate}</p>
+          <div className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-center">
+            <p className="text-[10px] text-white/60 mb-0.5">Tarix</p>
+            <p className="text-sm font-bold">{selectedDate}</p>
           </div>
         </div>
 
-        <h1 className="text-4xl font-bold text-center mb-2">Apellyasiya Sistemi</h1>
-        <p className="text-center text-white/70 mb-8 text-sm">Abituriyentin sıra nömrəsini daxil edin</p>
+        {/* ⬇️ text-4xl → text-2xl, mb-8 → mb-3 */}
+        <h1 className="text-2xl font-bold text-center mb-1">Apellyasiya Sistemi</h1>
+        <p className="text-center text-white/70 mb-3 text-sm">Abituriyentin sıra nömrəsini daxil edin</p>
 
         {!orderLocked ? (
-          <div className="flex gap-3 mb-8">
+          <div className="flex gap-3 mb-4">
             <input
               type="number"
               placeholder="Sıra nömrəsi"
               value={orderNo}
               onChange={(e) => setOrderNo(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && fetchStudent()}
-              className="flex-1 px-5 py-4 rounded-2xl bg-white/80 text-black text-lg"
+              className="flex-1 px-5 py-3 rounded-2xl bg-white/80 text-black text-lg"
             />
-            <button onClick={fetchStudent} className="px-8 py-4 rounded-2xl bg-black text-white text-lg font-semibold">
+            <button onClick={fetchStudent} className="px-8 py-3 rounded-2xl bg-black text-white text-lg font-semibold">
               Aç
             </button>
           </div>
         ) : (
-          <div className="flex items-center gap-3 mb-8 px-5 py-4 rounded-2xl bg-white/10 border border-white/20">
-            <span className="flex-1 text-white text-lg">Sıra № <span className="font-bold">{orderNo}</span></span>
-            <button onClick={resetOrder} className="px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-sm transition-colors">
+          <div className="flex items-center gap-3 mb-4 px-4 py-2 rounded-2xl bg-white/10 border border-white/20">
+            <span className="flex-1 text-white text-base">Sıra № <span className="font-bold">{orderNo}</span></span>
+            <button onClick={resetOrder} className="px-4 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-sm transition-colors">
               Dəyiş
             </button>
           </div>
         )}
 
         {student && (
-          <div className="bg-white rounded-3xl p-8 text-black shadow-xl">
-            {/* Student info */}
-            <div className="flex items-center gap-6 mb-8 pb-6 border-b border-gray-100">
-              <div className="w-24 h-24 rounded-2xl overflow-hidden bg-gray-100 flex-shrink-0">
-                {student.photo ? (
-                  <img src={student.photo} alt="foto" className="w-full h-full object-cover" />
+          // ⬇️ p-8 → p-5, mb-8 → mb-4, pb-6 → pb-4
+          <div className="bg-white rounded-3xl p-5 text-black shadow-xl">
+            {/* Student info — foto böyüdü: w-24 h-24 → w-40 h-40 */}
+            <div className="flex items-center gap-5 mb-4 pb-4 border-b border-gray-100">
+              <div className="w-40 h-40 rounded-2xl overflow-hidden bg-gray-100 flex-shrink-0">
+                {photoSrc ? (
+                  <img
+                    src={photoSrc}
+                    alt="foto"
+                    className="w-full h-full object-cover"
+                    onError={(e) => { e.currentTarget.style.display = "none"; }}
+                  />
                 ) : (
                   <div className="flex items-center justify-center h-full text-gray-400 text-sm">Foto yoxdur</div>
                 )}
               </div>
-              <div className="flex-1">
-                <h2 className="text-xl font-bold text-gray-900 mb-2">
+              <div className="flex-1 min-w-0">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2 truncate">
                   {student.name} {student.middleName} {student.surname}
                 </h2>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1">
@@ -229,8 +244,8 @@ function AppealPage({ config }) {
               </div>
             </div>
 
-            {/* BAL 1 */}
-            <div className="flex flex-col gap-3 mb-6">
+            {/* BAL 1 — gap-3 mb-6 → gap-2 mb-3 */}
+            <div className="flex flex-col gap-2 mb-3">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Apellyasiya — Bal 1</p>
                 {appeal1Saved && (
@@ -251,7 +266,7 @@ function AppealPage({ config }) {
                     value={appeal1}
                     disabled={!changed1 || appeal1Saved}
                     onChange={(e) => setAppeal1(e.target.value)}
-                    className="w-full px-5 py-4 border-2 border-gray-200 rounded-2xl text-lg disabled:bg-gray-50 disabled:text-gray-500 focus:outline-none focus:border-indigo-400 transition-colors"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-2xl text-lg disabled:bg-gray-50 disabled:text-gray-500 focus:outline-none focus:border-indigo-400 transition-colors"
                   />
                   {!changed1 && (
                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-green-600 bg-green-50 border border-green-200 px-2 py-1 rounded-lg">
@@ -262,13 +277,13 @@ function AppealPage({ config }) {
               )}
 
               {!appeal1Saved && changed1 !== null && (
-                <button onClick={saveBal1} className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold hover:opacity-90 transition-opacity">
+                <button onClick={saveBal1} className="w-full py-3 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold hover:opacity-90 transition-opacity">
                   Bal 1-i yadda saxla
                 </button>
               )}
 
               {appeal1Saved && (
-                <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-green-50 border border-green-200">
+                <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-50 border border-green-200">
                   <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                   </svg>
@@ -282,7 +297,7 @@ function AppealPage({ config }) {
 
             {/* BAL 2 */}
             {isSubject4 && student.result2 != null && (
-              <div className="flex flex-col gap-3 pt-6 border-t border-gray-100">
+              <div className="flex flex-col gap-2 pt-3 border-t border-gray-100">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Apellyasiya — Bal 2</p>
                   {appeal2Saved && (
@@ -307,7 +322,7 @@ function AppealPage({ config }) {
                       value={appeal2}
                       disabled={!changed2 || appeal2Saved}
                       onChange={(e) => setAppeal2(e.target.value)}
-                      className="w-full px-5 py-4 border-2 border-gray-200 rounded-2xl text-lg disabled:bg-gray-50 disabled:text-gray-500 focus:outline-none focus:border-indigo-400 transition-colors"
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-2xl text-lg disabled:bg-gray-50 disabled:text-gray-500 focus:outline-none focus:border-indigo-400 transition-colors"
                     />
                     {!changed2 && (
                       <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-green-600 bg-green-50 border border-green-200 px-2 py-1 rounded-lg">
@@ -318,13 +333,13 @@ function AppealPage({ config }) {
                 )}
 
                 {appeal1Saved && !appeal2Saved && changed2 !== null && (
-                  <button onClick={saveBal2} className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold hover:opacity-90 transition-opacity">
+                  <button onClick={saveBal2} className="w-full py-3 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold hover:opacity-90 transition-opacity">
                     Bal 2-i yadda saxla
                   </button>
                 )}
 
                 {appeal2Saved && (
-                  <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-green-50 border border-green-200">
+                  <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-50 border border-green-200">
                     <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                     </svg>

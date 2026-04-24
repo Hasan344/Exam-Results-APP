@@ -22,10 +22,9 @@ function MainPage({ config }) {
   const [result, setResult] = useState("");
   const [result2, setResult2] = useState("");
 
-  // section=3 üçün: imtahandakı bütün ekspertlər və onların balları
   const [examExperts, setExamExperts] = useState([]);
-  const [expertScores, setExpertScores] = useState({});      // { [expertId]: "score" }
-  const [expertScoreLocks, setExpertScoreLocks] = useState({}); // { [expertId]: bool }
+  const [expertScores, setExpertScores] = useState({});
+  const [expertScoreLocks, setExpertScoreLocks] = useState({});
 
   const [result1Locked, setResult1Locked] = useState(false);
   const [result2Locked, setResult2Locked] = useState(false);
@@ -35,7 +34,6 @@ function MainPage({ config }) {
 
   const { openUnlock, UnlockModal } = useUnlockModal();
 
-  // section=3 olanda imtahanın ekspertlərini yüklə
   useEffect(() => {
     if (!isSection3 || !selectedExam) {
       setExamExperts([]);
@@ -97,10 +95,10 @@ function MainPage({ config }) {
     setStudent(null);
     setResult("");
     setResult2("");
-    setExpertScores({});
-    setExpertScoreLocks({});
     setResult1Locked(false);
     setResult2Locked(false);
+    setExpertScores({});
+    setExpertScoreLocks({});
   };
 
   const showSuccess = (callback) => {
@@ -109,10 +107,6 @@ function MainPage({ config }) {
   };
 
   const saveField = async (field, value) => {
-    if (value === "" || value === null || value === undefined) {
-      addToast("Zəhmət olmasa bal daxil edin", "info");
-      return false;
-    }
     try {
       const body = field === "result"
         ? {
@@ -139,7 +133,6 @@ function MainPage({ config }) {
     }
   };
 
-  // section=3 — bütün ekspert ballarını eyni anda yadda saxla
   const saveAllExpertScores = async () => {
     if (examExperts.length === 0) {
       addToast("Bu imtahana heç bir ekspert təyin olunmayıb", "info");
@@ -207,7 +200,6 @@ function MainPage({ config }) {
   const expertFullName = (e) =>
     e ? [e.surname, e.name, e.middlename].filter(Boolean).join(" ") : "";
 
-  // Orta bal (yalnız UI)
   const avgInfo = (() => {
     if (!isSection3 || examExperts.length === 0) return null;
     const nums = examExperts
@@ -224,75 +216,94 @@ function MainPage({ config }) {
     examExperts.length > 0 &&
     examExperts.every(e => expertScoreLocks[e.id]);
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center p-6">
-      <div className="w-full max-w-2xl backdrop-blur-lg bg-white/20 border border-white/30 rounded-3xl shadow-2xl p-10 text-white">
+  // Foto URL-i qur: photo_path varsa backend-dən serve et, yoxsa köhnə base64/URL
+  const photoSrc = student
+    ? (student.photo_path
+        ? `http://localhost:5000/students/${student.id}/photo`
+        : student.photo || null)
+    : null;
 
-        <div className="flex flex-wrap gap-2 mb-6">
+  return (
+    // ⬇️ min-h-screen + items-center → h-screen + items-start + py-4 (ekranı aşmır)
+    <div className="h-screen overflow-hidden bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-start justify-center p-4">
+      {/* ⬇️ max-w-2xl → max-w-4xl (kart böyüdü), p-10 → p-6 (daxili boşluqlar azaldı) */}
+      <div className="w-full max-w-4xl backdrop-blur-lg bg-white/20 border border-white/30 rounded-3xl shadow-2xl p-6 text-white">
+
+        {/* ⬇️ mb-6 → mb-3 (üst chiplər daha sıx) */}
+        <div className="flex flex-wrap gap-2 mb-3">
           {selectedSection && (
-            <div className="flex-1 min-w-0 px-4 py-3 rounded-2xl bg-white/10 border border-white/20 text-center">
-              <p className="text-xs text-white/60 mb-0.5">Bölmə</p>
-              <p className="font-bold truncate">{selectedSection.name}</p>
+            <div className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-center">
+              <p className="text-[10px] text-white/60 mb-0.5">Bölmə</p>
+              <p className="text-sm font-bold truncate">{selectedSection.name}</p>
             </div>
           )}
-          <div className="flex-1 min-w-0 px-4 py-3 rounded-2xl bg-white/10 border border-white/20 text-center">
-            <p className="text-xs text-white/60 mb-0.5">Fənn</p>
-            <p className="font-bold truncate">{selectedSubject?.Name}</p>
+          <div className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-center">
+            <p className="text-[10px] text-white/60 mb-0.5">Fənn</p>
+            <p className="text-sm font-bold truncate">{selectedSubject?.Name}</p>
           </div>
-          <div className="flex-1 min-w-0 px-4 py-3 rounded-2xl bg-white/10 border border-white/20 text-center">
-            <p className="text-xs text-white/60 mb-0.5">Bina</p>
-            <p className="font-bold truncate">{selectedBuilding?.name}</p>
+          <div className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-center">
+            <p className="text-[10px] text-white/60 mb-0.5">Bina</p>
+            <p className="text-sm font-bold truncate">{selectedBuilding?.name}</p>
           </div>
-          <div className="flex-1 min-w-0 px-4 py-3 rounded-2xl bg-white/10 border border-white/20 text-center">
-            <p className="text-xs text-white/60 mb-0.5">Tarix</p>
-            <p className="font-bold">{selectedDate}</p>
+          <div className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-center">
+            <p className="text-[10px] text-white/60 mb-0.5">Tarix</p>
+            <p className="text-sm font-bold">{selectedDate}</p>
           </div>
         </div>
 
         {isSection3 && selectedExam && (
-          <div className="mb-6 px-4 py-3 rounded-2xl bg-white/10 border border-white/20 text-center">
-            <p className="text-xs text-white/60 mb-0.5">İmtahan</p>
-            <p className="font-bold">{selectedExam.Name} ({examExperts.length} ekspert)</p>
+          <div className="mb-3 px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-center">
+            <p className="text-[10px] text-white/60 mb-0.5">İmtahan</p>
+            <p className="text-sm font-bold">{selectedExam.Name} ({examExperts.length} ekspert)</p>
           </div>
         )}
 
-        <p className="text-center text-white/70 mb-6 text-sm">Abituriyentin sıra nömrəsini daxil edin</p>
-
         {!orderLocked ? (
-          <div className="flex gap-3 mb-8">
-            <input
-              type="number"
-              placeholder="Sıra nömrəsi"
-              value={orderNo}
-              onChange={(e) => setOrderNo(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && fetchStudent()}
-              className="flex-1 px-5 py-4 rounded-2xl bg-white/80 text-black text-lg"
-            />
-            <button onClick={fetchStudent} className="px-8 py-4 rounded-2xl bg-black text-white text-lg font-semibold">
-              Aç
-            </button>
-          </div>
+          <>
+            <p className="text-center text-white/70 mb-3 text-sm">Abituriyentin sıra nömrəsini daxil edin</p>
+            <div className="flex gap-3 mb-4">
+              <input
+                type="number"
+                placeholder="Sıra nömrəsi"
+                value={orderNo}
+                onChange={(e) => setOrderNo(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && fetchStudent()}
+                className="flex-1 px-5 py-3 rounded-2xl bg-white/80 text-black text-lg"
+              />
+              <button onClick={fetchStudent} className="px-8 py-3 rounded-2xl bg-black text-white text-lg font-semibold">
+                Aç
+              </button>
+            </div>
+          </>
         ) : (
-          <div className="flex items-center gap-3 mb-8 px-5 py-4 rounded-2xl bg-white/10 border border-white/20">
-            <span className="flex-1 text-white text-lg">Sıra № <span className="font-bold">{orderNo}</span></span>
-            <button onClick={resetOrder} className="px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-sm transition-colors">
+          <div className="flex items-center gap-3 mb-4 px-4 py-2 rounded-2xl bg-white/10 border border-white/20">
+            <span className="flex-1 text-white text-base">Sıra № <span className="font-bold">{orderNo}</span></span>
+            <button onClick={resetOrder} className="px-4 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-sm transition-colors">
               Dəyiş
             </button>
           </div>
         )}
 
         {student && (
-          <div className="bg-white rounded-3xl p-8 text-black shadow-xl">
-            <div className="flex items-center gap-6 mb-8 pb-6 border-b border-gray-100">
-              <div className="w-28 h-28 rounded-2xl overflow-hidden bg-gray-100 flex-shrink-0">
-                {student.photo ? (
-                  <img src={student.photo} alt="foto" className="w-full h-full object-cover" />
+          // ⬇️ p-8 → p-5, mb-8 → mb-4, pb-6 → pb-4
+          <div className="bg-white rounded-3xl p-5 text-black shadow-xl">
+
+            {/* ⬇️ Foto w-28 h-28 → w-40 h-40 (böyüdü). Ad şriftı də yüngülcə böyüdü. */}
+            <div className="flex items-center gap-5 mb-4 pb-4 border-b border-gray-100">
+              <div className="w-40 h-40 rounded-2xl overflow-hidden bg-gray-100 flex-shrink-0">
+                {photoSrc ? (
+                  <img
+                    src={photoSrc}
+                    alt="foto"
+                    className="w-full h-full object-cover"
+                    onError={(e) => { e.currentTarget.style.display = "none"; }}
+                  />
                 ) : (
                   <div className="flex items-center justify-center h-full text-gray-400 text-sm">Foto yoxdur</div>
                 )}
               </div>
-              <div className="flex-1">
-                <h2 className="text-2xl font-bold text-gray-900 mb-3">
+              <div className="flex-1 min-w-0">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2 truncate">
                   {student.name} {student.surname} {student.middleName}
                 </h2>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1">
@@ -304,7 +315,8 @@ function MainPage({ config }) {
               </div>
             </div>
 
-            <div className="flex flex-col gap-5">
+            {/* ⬇️ gap-5 → gap-3 (nəticə bölümünün daxili boşluqları sıxıldı) */}
+            <div className="flex flex-col gap-3">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Nəticə</p>
 
               {isSection3 ? (
@@ -326,23 +338,22 @@ function MainPage({ config }) {
                       />
                     ))}
 
-                    {/* Orta bal göstəricisi */}
                     {avgInfo && (
-                      <div className="flex items-center justify-between px-5 py-4 rounded-2xl bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100">
+                      <div className="flex items-center justify-between px-4 py-2.5 rounded-2xl bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100">
                         <div>
                           <p className="text-xs text-gray-500 uppercase tracking-widest">Orta bal</p>
                           <p className="text-xs text-gray-400 mt-0.5">
                             {avgInfo.count}/{avgInfo.total} ekspert · cəm: {avgInfo.sum.toFixed(2)}
                           </p>
                         </div>
-                        <p className="text-3xl font-bold text-indigo-600">{avgInfo.avg.toFixed(2)}</p>
+                        <p className="text-2xl font-bold text-indigo-600">{avgInfo.avg.toFixed(2)}</p>
                       </div>
                     )}
 
                     {!allExpertScoresSaved && (
                       <button
                         onClick={saveAllExpertScores}
-                        className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold hover:opacity-90 transition-opacity"
+                        className="w-full py-3 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold hover:opacity-90 transition-opacity"
                       >
                         Bütün balları yadda saxla
                       </button>
@@ -400,12 +411,9 @@ function BalInput({ label, value, onChange, locked, onUnlock, onSave, saveLabel,
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-medium text-gray-600">{label}</label>
+        <p className="text-xs font-semibold text-gray-500">{label}</p>
         {locked && (
-          <button
-            onClick={onUnlock}
-            className="text-xs text-gray-400 hover:text-gray-600 transition-colors flex items-center gap-1"
-          >
+          <button onClick={onUnlock} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
             🔒 Dəyiş
           </button>
         )}
@@ -413,27 +421,19 @@ function BalInput({ label, value, onChange, locked, onUnlock, onSave, saveLabel,
       <input
         type="number"
         step="0.1"
-        placeholder="0.0"
+        placeholder="Bal daxil edin"
         value={value}
         disabled={locked}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full px-5 py-4 border-2 border-gray-200 rounded-2xl text-lg disabled:bg-gray-50 disabled:text-gray-400 focus:outline-none focus:border-indigo-400 transition-colors"
+        className="w-full px-4 py-3 border-2 border-gray-200 rounded-2xl text-lg disabled:bg-gray-50 disabled:text-gray-500 focus:outline-none focus:border-indigo-400 transition-colors"
       />
-      {!locked && !hideSaveButton && onSave && (
+      {!hideSaveButton && !locked && (
         <button
           onClick={onSave}
-          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold hover:opacity-90 transition-opacity"
+          className="w-full py-3 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold hover:opacity-90 transition-opacity"
         >
           {saveLabel}
         </button>
-      )}
-      {locked && value !== "" && (
-        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-green-50 border border-green-200">
-          <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-          </svg>
-          <span className="text-sm text-green-700 font-medium">Qeydə alındı — {value}</span>
-        </div>
       )}
     </div>
   );
