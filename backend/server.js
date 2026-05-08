@@ -18,6 +18,7 @@ const authRoutes = require("./auth");
 const sectionsRoutes = require("./sections");
 const expertsRoutes = require("./experts");
 const examsRoutes = require("./exams");
+const importsRoutes = require("./imports");
 
 app.use("/subjects", subjectsRoutes);
 app.use("/students", studentsRoutes);
@@ -26,6 +27,7 @@ app.use("/auth", authRoutes);
 app.use("/sections", sectionsRoutes);
 app.use("/experts", expertsRoutes);
 app.use("/exams", examsRoutes);
+app.use("/imports", importsRoutes);
 
 // server başlat
 app.listen(5000, () => {
