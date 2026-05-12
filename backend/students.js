@@ -183,5 +183,45 @@ router.post("/:id/section3-result", (req, res) => {
     );
   });
 });
+// backend/students.js içinə əlavə olunacaq endpoint-lər
+// (mövcud students.js-in sonuna, `module.exports = router;` sətrindən ƏVVƏL əlavə et)
 
+const path = require("path");
+const fs = require("fs");
+
+// Foto qovluğu — backend/photos/ (server.js olan qovluğa görə nisbi)
+const PHOTOS_DIR = path.join(__dirname, "photos");
+
+// Foto endpoint-i: GET /students/:id/photo
+// DB-dən yalnız photo_path oxuyur, sonra faylı birbaşa serve edir.
+router.get("/:id/photo", (req, res) => {
+  const { id } = req.params;
+  db.get("SELECT photo_path FROM students WHERE id = ?", [id], (err, row) => {
+    if (err) return res.status(500).json({ message: err.message });
+    if (!row || !row.photo_path) {
+      return res.status(404).json({ message: "Foto yoxdur" });
+    }
+
+    // photo_path həm mütləq, həm də PHOTOS_DIR-ə görə nisbi ola bilər
+    let filePath = row.photo_path;
+    if (!path.isAbsolute(filePath)) {
+      filePath = path.join(PHOTOS_DIR, filePath);
+    }
+
+    // Qovluqdan kənara çıxmağa icazə vermə (path traversal qorunması)
+    const resolved = path.resolve(filePath);
+    const allowedRoot = path.resolve(PHOTOS_DIR);
+    if (!resolved.startsWith(allowedRoot)) {
+      return res.status(400).json({ message: "Keçərsiz yol" });
+    }
+
+    if (!fs.existsSync(resolved)) {
+      return res.status(404).json({ message: "Fayl tapılmadı" });
+    }
+
+    // Brauzerin cache etməsi üçün (tələbə dəyişməsə, yenidən yükləmir)
+    res.setHeader("Cache-Control", "public, max-age=3600");
+    res.sendFile(resolved);
+  });
+});
 module.exports = router;
