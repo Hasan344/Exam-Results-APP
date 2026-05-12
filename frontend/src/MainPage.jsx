@@ -13,6 +13,7 @@ function MainPage({ config }) {
   const { addToast } = useToast();
 
   const isSection3 = selectedSection?.id === 3;
+  const isSection1 = selectedSection?.id === 1; 
   const isSubject4 = selectedSubject?.id === 4;
 
   const [orderNo, setOrderNo] = useState("");
@@ -108,14 +109,13 @@ function MainPage({ config }) {
 
   const saveField = async (field, value) => {
     try {
-      const body = field === "result"
-        ? {
-            subjectId: selectedSubject.id,
-            buildingCode: selectedBuilding.code,
-            examDate: selectedDate,
-            value: Number(value),
-          }
-        : null;
+      const body = {
+        subjectId: selectedSubject.id,
+        buildingCode: selectedBuilding.code,
+        examDate: selectedDate,
+        value: Number(value),
+        field, // backend hansı sütunu yeniləyəcəyini bilsin
+      };
 
       const res = await fetch(`http://localhost:5000/students/${student.id}/result`, {
         method: "POST",
@@ -182,6 +182,12 @@ function MainPage({ config }) {
     if (isSubject4) showSuccess(() => {});
     else showSuccess(() => resetOrder());
   };
+  const handleSaveBal2 = async () => {
+    const ok = await saveField("result2", result2);
+    if (!ok) return;
+    setResult2Locked(true);
+    showSuccess(() => resetOrder());
+  };
 
   const handleUnlock = (setLocked) => {
     openUnlock("result", () => setLocked(false));
@@ -227,7 +233,7 @@ function MainPage({ config }) {
     // ⬇️ min-h-screen + items-center → h-screen + items-start + py-4 (ekranı aşmır)
     <div className="h-screen overflow-hidden bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-start justify-center p-4">
       {/* ⬇️ max-w-2xl → max-w-4xl (kart böyüdü), p-10 → p-6 (daxili boşluqlar azaldı) */}
-      <div className="w-full max-w-4xl backdrop-blur-lg bg-white/20 border border-white/30 rounded-3xl shadow-2xl p-6 text-white">
+      <div className="w-full max-w-5xl backdrop-blur-lg bg-white/20 border border-white/30 rounded-3xl shadow-2xl p-6 text-white">
 
         {/* ⬇️ mb-6 → mb-3 (üst chiplər daha sıx) */}
         <div className="flex flex-wrap gap-2 mb-3">
@@ -290,7 +296,7 @@ function MainPage({ config }) {
 
             {/* ⬇️ Foto w-28 h-28 → w-40 h-40 (böyüdü). Ad şriftı də yüngülcə böyüdü. */}
             <div className="flex items-center gap-5 mb-4 pb-4 border-b border-gray-100">
-              <div className="w-40 h-40 rounded-2xl overflow-hidden bg-gray-100 flex-shrink-0">
+              <div className="w-48 h-48 rounded-2xl overflow-hidden bg-gray-100 flex-shrink-0">
                 {photoSrc ? (
                   <img
                     src={photoSrc}
@@ -361,16 +367,34 @@ function MainPage({ config }) {
                   </>
                 )
               ) : (
-                <>
+                 <>
                   <BalInput
-                    label="Bal 1"
+                    label={isSection1 ? (selectedSubject?.Name ?? "Bal 1") : "Bal 1"}
                     value={result}
                     onChange={setResult}
                     locked={result1Locked}
                     onUnlock={() => handleUnlock(setResult1Locked)}
                     onSave={handleSaveBal1}
-                    saveLabel="Bal 1-i yadda saxla"
+                    saveLabel={isSection1 ? `${selectedSubject?.Name ?? "Bal 1"}-i yadda saxla` : "Bal 1-i yadda saxla"}
                   />
+
+                  {isSection1 && isSubject4 && (
+                    result1Locked ? (
+                      <BalInput
+                        label={`${selectedSubject?.Name ?? "Bal"} 2`}
+                        value={result2}
+                        onChange={setResult2}
+                        locked={result2Locked}
+                        onUnlock={() => handleUnlock(setResult2Locked)}
+                        onSave={handleSaveBal2}
+                        saveLabel={`${selectedSubject?.Name ?? "Bal"} 2-i yadda saxla`}
+                      />
+                    ) : (
+                      <p className="text-xs text-gray-400 text-center py-2">
+                        Əvvəlcə {selectedSubject?.Name ?? "Bal 1"}-i yadda saxlayın
+                      </p>
+                    )
+                  )}
                 </>
               )}
             </div>

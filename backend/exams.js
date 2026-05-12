@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const db = require("../.claude/worktrees/condescending-carson-518c9a/backend/database");
+const db = require("./database");
 
 // Bütün imtahanları gətir
 router.get("/", (req, res) => {

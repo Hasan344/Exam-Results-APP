@@ -45,7 +45,7 @@ router.get("/results", (req, res) => {
   let query = `
     SELECT
       s.id, s.name, s.middleName, s.surname,
-      s.result,
+      s.result,s.result2,
       s.result_appeal, s.result_appeal2,
       s.subject_id, s.orderNo,
       sub.sectionId
@@ -101,12 +101,14 @@ router.get("/buildings", (req, res) => {
   });
 });
 
-// section != 3 flow — tək result sütunu
 router.post("/:id/result", (req, res) => {
   const { id } = req.params;
-  const { subjectId, buildingCode, examDate, value } = req.body;
+  const { subjectId, buildingCode, examDate, value, field } = req.body;
 
-  const query = `UPDATE students SET result = ?, subject_id = ?, building_id = ?, exam_date = ? WHERE id = ?`;
+  // field göndərilməyibsə default olaraq "result"
+  const targetField = field === "result2" ? "result2" : "result";
+
+  const query = `UPDATE students SET ${targetField} = ?, subject_id = ?, building_id = ?, exam_date = ? WHERE id = ?`;
   const params = [value, subjectId, buildingCode, examDate, id];
 
   db.run(query, params, function (err) {
@@ -115,7 +117,6 @@ router.post("/:id/result", (req, res) => {
     res.json({ message: "Kaydedildi ✔" });
   });
 });
-
 // ───────────────────── section = 3 flow ─────────────────────
 
 // Bir tələbənin bir imtahandakı bütün ekspert balları

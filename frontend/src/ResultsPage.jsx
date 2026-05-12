@@ -11,6 +11,7 @@ function ResultsPage({ config }) {
   const examId = config?.exam?.id;
 
   const isSection3 = sectionId === 3;
+  const isSection1 = sectionId === 1;
   const isSubject4 = subjectId === 4;
 
   useEffect(() => {
@@ -159,8 +160,14 @@ function ResultsPage({ config }) {
                 <tr className="bg-white/20 text-left">
                   <th className="px-6 py-4">№</th>
                   <th className="px-6 py-4">Ad Soyad Ata adı</th>
-                  <th className="px-6 py-4">Bal 1</th>
-                  {isSubject4 && <th className="px-6 py-4">Bal 2</th>}
+                   <th className="px-6 py-4">
+  {isSection1 ? (config?.subject?.Name ?? "Bal 1") : "Bal 1"}
+</th>
+                  {isSubject4 && (
+  <th className="px-6 py-4">
+    {isSection1 ? `${config?.subject?.Name ?? "Bal"} 2` : "Bal 2"}
+  </th>
+)}
                 </tr>
               </thead>
               <tbody>

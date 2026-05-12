@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const db = require("..backend/database");
+const db = require("./database");
 
 // Bütün ekspertləri gətir
 router.get("/", (req, res) => {

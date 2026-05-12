@@ -6,7 +6,7 @@
 // section != 3 olan amma 2-ci balı olan fənnlər (məs. subject 4) hələ də onları istifadə edir.
 // section = 3 üçün bütün ekspert balları yalnız StudentResults-də saxlanılır.
 
-const db = require("../.claude/worktrees/condescending-carson-518c9a/backend/database");
+const db = require("./database");
 
 db.serialize(() => {
   db.run(`
