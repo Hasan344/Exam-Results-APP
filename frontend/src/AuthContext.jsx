@@ -1,5 +1,6 @@
 import { createContext, useContext, useState } from "react";
 
+import { API_BASE } from "./api";
 const AuthContext = createContext(null);
 
 // Baza üzərindən auth yoxlaması
@@ -7,7 +8,7 @@ const AuthContext = createContext(null);
 // name="unlock" → kilit açma
 export async function checkAuth(name, password) {
   try {
-    const res = await fetch("http://localhost:5000/auth/login", {
+    const res = await fetch(`${API_BASE}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, password }),

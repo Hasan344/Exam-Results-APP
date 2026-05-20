@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useUnlockModal } from "./useUnlockModal";
 import { useToast } from "./Toast";
 
+import { API_BASE } from "./api";
 function MainPage({ config }) {
   const {
     subject: selectedSubject,
@@ -40,7 +41,7 @@ function MainPage({ config }) {
       setExamExperts([]);
       return;
     }
-    fetch(`http://localhost:5000/exams/${selectedExam.id}/experts`)
+    fetch(`${API_BASE}/exams/${selectedExam.id}/experts`)
       .then(r => r.json())
       .then(data => setExamExperts(Array.isArray(data) ? data : []))
       .catch(() => setExamExperts([]));
@@ -50,7 +51,7 @@ function MainPage({ config }) {
     if (!orderNo) return;
     try {
       const res = await fetch(
-        `http://localhost:5000/students/order/${orderNo}?buildingCode=${selectedBuilding.code}&examDate=${encodeURIComponent(selectedDate)}`
+        `${API_BASE}/students/order/${orderNo}?buildingCode=${selectedBuilding.code}&examDate=${encodeURIComponent(selectedDate)}`
       );
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -63,7 +64,7 @@ function MainPage({ config }) {
       if (isSection3) {
         try {
           const sr = await fetch(
-            `http://localhost:5000/students/${data.id}/section3-results?examId=${selectedExam.id}`
+            `${API_BASE}/students/${data.id}/section3-results?examId=${selectedExam.id}`
           );
           const rows = sr.ok ? await sr.json() : [];
           const scoreMap = {};
@@ -117,7 +118,7 @@ function MainPage({ config }) {
         field, // backend hansı sütunu yeniləyəcəyini bilsin
       };
 
-      const res = await fetch(`http://localhost:5000/students/${student.id}/result`, {
+      const res = await fetch(`${API_BASE}/students/${student.id}/result`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -148,7 +149,7 @@ function MainPage({ config }) {
 
     try {
       const requests = examExperts.map(e =>
-        fetch(`http://localhost:5000/students/${student.id}/section3-result`, {
+        fetch(`${API_BASE}/students/${student.id}/section3-result`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -225,7 +226,7 @@ function MainPage({ config }) {
   // Foto URL-i qur: photo_path varsa backend-dən serve et, yoxsa köhnə base64/URL
   const photoSrc = student
     ? (student.photo_path
-        ? `http://localhost:5000/students/${student.id}/photo`
+        ? `${API_BASE}/students/${student.id}/photo`
         : student.photo || null)
     : null;
 

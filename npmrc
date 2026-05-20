@@ -1,0 +1,10 @@
+# sqlite3 və digər native modulları SOURCE-dan compile etmə —
+# prebuilt binary-lərdən istifadə et. Bu Python və Visual Studio
+# Build Tools tələbatını aradan qaldırır.
+build_from_source=false
+
+# Electron 33 üçün sqlite3 prebuilt seçimi
+runtime=electron
+target=33.4.11
+target_arch=x64
+disturl=https://electronjs.org/headers

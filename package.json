@@ -1,16 +1,28 @@
 {
-  "name": "exam-results-app",
+  "name": "exam-results-desktop",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
+  "description": "Exam results app — desktop (Electron)",
+  "main": "electron/main.js",
   "author": "",
   "license": "ISC",
+  "scripts": {
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend":  "node backend/server.js",
+    "dev:electron": "electron .",
+
+    "build:frontend": "cd frontend && npm install && npm run build",
+
+    "rebuild:native": "electron-builder install-app-deps",
+    "rebuild:sqlite": "electron-rebuild -f -w sqlite3",
+
+    "pack":      "npm run build:frontend && electron-builder --dir",
+    "dist":      "npm run build:frontend && electron-builder",
+    "dist:win":  "npm run build:frontend && electron-builder --win",
+    "dist:mac":  "npm run build:frontend && electron-builder --mac",
+    "dist:linux":"npm run build:frontend && electron-builder --linux"
+  },
   "dependencies": {
-    "bcrypt": "^6.0.0",
+    "bcryptjs": "^2.4.3",
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "multer": "^2.1.1",
@@ -20,6 +32,74 @@
   "devDependencies": {
     "autoprefixer": "^10.4.24",
     "postcss": "^8.5.6",
-    "tailwindcss": "^3.4.19"
+    "tailwindcss": "^3.4.19",
+    "concurrently": "^9.1.0",
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8",
+    "wait-on": "^8.0.1"
+  },
+  "build": {
+    "appId": "com.example.examresults",
+    "productName": "ExamResults",
+    "asar": true,
+    "forceCodeSigning": false,
+    "asarUnpack": [
+      "backend/**/*",
+      "node_modules/**/*"
+    ],
+    "files": [
+      "electron/**/*",
+      "backend/**/*",
+      "node_modules/**/*",
+      "package.json",
+      "!frontend/**/*",
+      "!release/**/*",
+      "!**/{.git,.gitignore,*.md,*.log}",
+      "!**/test/**",
+      "!**/tests/**",
+      "!**/{*.ts,tsconfig.json,.eslintrc*}",
+      "!**/node_modules/*/{CHANGELOG.md,README,readme.md,readme}",
+      "!**/node_modules/.cache"
+    ],
+    "extraResources": [
+      {
+        "from": "frontend/dist",
+        "to": "frontend/dist",
+        "filter": ["**/*"]
+      }
+    ],
+    "directories": {
+      "buildResources": "build",
+      "output": "release"
+    },
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ],
+      "signAndEditExecutable": false,
+      "signtoolOptions": null
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Exam Results",
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "${productName}-Portable-${version}.${ext}"
+    },
+    "mac": {
+      "target": ["dmg"],
+      "category": "public.app-category.productivity",
+      "identity": null
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Office"
+    }
   }
 }

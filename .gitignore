@@ -1,0 +1,9 @@
+node_modules/
+release/
+dist/
+*.log
+.DS_Store
+frontend/dist/
+backend/uploads/
+backend/photos/
+backend/database.db

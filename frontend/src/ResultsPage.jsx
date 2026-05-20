@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 
+import { API_BASE } from "./api";
 function ResultsPage({ config }) {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -23,7 +24,7 @@ function ResultsPage({ config }) {
     if (isSection3 && examId) params.append("examId", examId);
 
     setLoading(true);
-    fetch(`http://localhost:5000/students/results?${params.toString()}`)
+    fetch(`${API_BASE}/students/results?${params.toString()}`)
       .then(res => res.json())
       .then(data => { setStudents(Array.isArray(data) ? data : []); setLoading(false); })
       .catch(() => { setLoading(false); });

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useUnlockModal } from "./useUnlockModal";
 import { useToast } from "./Toast";
 
+import { API_BASE } from "./api";
 function ChangeToggle({ value, onChange, disabled }) {
   return (
     <div className="flex rounded-2xl overflow-hidden border border-gray-200">
@@ -60,7 +61,7 @@ function AppealPage({ config }) {
     if (!orderNo) return;
     try {
       const res = await fetch(
-        `http://localhost:5000/students/order/${orderNo}?buildingCode=${selectedBuilding.code}&examDate=${encodeURIComponent(selectedDate)}`
+        `${API_BASE}/students/order/${orderNo}?buildingCode=${selectedBuilding.code}&examDate=${encodeURIComponent(selectedDate)}`
       );
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -110,7 +111,7 @@ function AppealPage({ config }) {
   };
 
   const saveAppealField = async (field, value) => {
-    const res = await fetch(`http://localhost:5000/appeal/${student.orderNo}`, {
+    const res = await fetch(`${API_BASE}/appeal/${student.orderNo}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ field, value: Number(value) }),
@@ -164,7 +165,7 @@ function AppealPage({ config }) {
   // Foto URL-i qur (backend foto endpoint-i ilə)
   const photoSrc = student
     ? (student.photo_path
-        ? `http://localhost:5000/students/${student.id}/photo`
+        ? `${API_BASE}/students/${student.id}/photo`
         : student.photo || null)
     : null;
 

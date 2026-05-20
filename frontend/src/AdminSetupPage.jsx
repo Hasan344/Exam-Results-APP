@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "./AuthContext";
 
+import { API_BASE } from "./api";
 // ─────────────────────────────────────────────────────────────
 // Yenidən istifadə olunan import kartı.
 //   endpoint: backend endpoint-i (POST multipart/form-data, sahə adı "file")
@@ -20,7 +21,7 @@ function ImportCard({ title, endpoint, columns, accept = ".xlsx,.xls,.csv" }) {
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const res = await fetch(`http://localhost:5000${endpoint}`, {
+      const res = await fetch(`${API_BASE}${endpoint}`, {
         method: "POST",
         body: fd,
       });
@@ -148,11 +149,11 @@ export default function AdminSetupPage() {
   const isSection3 = selectedSection?.id === 3;
 
   useEffect(() => {
-    fetch("http://localhost:5000/sections")
+    fetch(`${API_BASE}/sections`)
       .then(r => r.json()).then(setSections).catch(() => {});
-    fetch("http://localhost:5000/students/buildings")
+    fetch(`${API_BASE}/students/buildings`)
       .then(r => r.json()).then(setBuildings).catch(() => {});
-    fetch("http://localhost:5000/students/exam-dates")
+    fetch(`${API_BASE}/students/exam-dates`)
       .then(r => r.json()).then(setExamDates).catch(() => {});
   }, []);
 
@@ -162,7 +163,7 @@ export default function AdminSetupPage() {
       setSelectedSubject(null);
       return;
     }
-    fetch(`http://localhost:5000/sections/${selectedSection.id}/subjects`)
+    fetch(`${API_BASE}/sections/${selectedSection.id}/subjects`)
       .then(r => r.json())
       .then(data => {
         setSubjects(data);
@@ -178,7 +179,7 @@ export default function AdminSetupPage() {
       setSelectedExam(null);
       return;
     }
-    fetch("http://localhost:5000/exams")
+    fetch(`${API_BASE}/exams`)
       .then(r => r.json()).then(setExams).catch(() => {});
   }, [isSection3, mode]);
 

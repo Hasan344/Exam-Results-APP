@@ -191,7 +191,7 @@ const path = require("path");
 const fs = require("fs");
 
 // Foto qovluğu — backend/photos/ (server.js olan qovluğa görə nisbi)
-const PHOTOS_DIR = path.join(__dirname, "photos");
+const PHOTOS_DIR = process.env.PHOTOS_DIR || path.join(__dirname, "photos");
 
 // Foto endpoint-i: GET /students/:id/photo
 // DB-dən yalnız photo_path oxuyur, sonra faylı birbaşa serve edir.
