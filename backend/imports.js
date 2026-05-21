@@ -268,4 +268,144 @@ router.post("/exam-experts", upload.single("file"), async (req, res) => {
   });
 });
 
+router.get("/results/export", (req, res) => {
+  const { buildingCode, examDate, subjectId, appealOnly } = req.query;
+  const useAppeal = appealOnly === "true";
+ 
+  // ─── 1) Exercise-ləri yükle (id → code mapping) ───────────────────────────
+  db.all("SELECT * FROM exercises ORDER BY id", [], (err, exercises) => {
+    if (err) {
+      // exercise cədvəli yoxdursa boş map istifadə et
+      exercises = [];
+    }
+ 
+    // id → exercise_code map
+    const exerciseById = {};
+    for (const ex of (exercises || [])) {
+      exerciseById[ex.id] = ex.code || ex.name || `exercise_${ex.id}`;
+    }
+ 
+    // ─── 2) Subject-ləri yükle ─────────────────────────────────────────────
+    db.all("SELECT * FROM subjects ORDER BY id", [], (errSub, subjects) => {
+      if (errSub) subjects = [];
+ 
+      // subject_id → exercise_code map (fallback: subject id-si exercise id-si kimi işlənir)
+      const subjectToExCode = {};
+      for (const sub of (subjects || [])) {
+        if (exerciseById[sub.id]) {
+          // Exercise cədvəlindən id üzrə tapıldı
+          subjectToExCode[sub.id] = exerciseById[sub.id];
+        } else {
+          // Fallback: subject adını snake_case exercise koduna çevir
+          const code = (sub.name || `subject_${sub.id}`)
+            .toLowerCase()
+            .replace(/\s+/g, "_")
+            .replace(/[^a-z0-9_]/g, "");
+          subjectToExCode[sub.id] = code;
+        }
+      }
+ 
+      // ─── 3) Tələbə nəticələrini çək ─────────────────────────────────────
+      let query = `
+        SELECT
+          s.id, s.orderNo, s.name, s.middleName, s.surname,
+          s.result, s.result2,
+          s.result_appeal, s.result_appeal2,
+          s.subject_id,
+          sub.sectionId, sub.name AS subjectName
+        FROM students s
+        LEFT JOIN subjects sub ON s.subject_id = sub.id
+        WHERE 1=1
+      `;
+      const params = [];
+ 
+      if (buildingCode) { query += " AND s.building_id = ?"; params.push(buildingCode); }
+      if (examDate)     { query += " AND s.exam_date = ?";   params.push(examDate); }
+      if (subjectId)    { query += " AND s.subject_id = ?";  params.push(subjectId); }
+ 
+      // Yalnız nəticəsi olan tələbələr
+      query += " AND (s.result IS NOT NULL OR s.result_appeal IS NOT NULL)";
+      query += " ORDER BY s.orderNo";
+ 
+      db.all(query, params, (errSt, students) => {
+        if (errSt) return res.status(500).json({ message: errSt.message });
+ 
+        // ─── 4) Excel sətirləri yarat ───────────────────────────────────────
+        // Admin format: is_n | exercise_code | raw_value | is_refused | notes
+        const rows = [];
+ 
+        for (const st of students) {
+          const exCode = subjectToExCode[st.subject_id] || `subject_${st.subject_id}`;
+ 
+          // Əsas bal (result1)
+          const val1 = useAppeal
+            ? (st.result_appeal ?? st.result)
+            : st.result;
+ 
+          if (val1 !== null && val1 !== undefined) {
+            rows.push({
+              is_n: st.orderNo,
+              exercise_code: exCode,
+              raw_value: val1,
+              is_refused: false,
+              notes: "",
+            });
+          }
+ 
+          // İkinci bal (result2) — yalnız dəyər varsa (subject 4 tipli çoxballı fənlər)
+          const val2 = useAppeal
+            ? (st.result_appeal2 ?? st.result2)
+            : st.result2;
+ 
+          if (val2 !== null && val2 !== undefined) {
+            // 2-ci hərəkətin kodu: birinciyə "_2" əlavə et
+            rows.push({
+              is_n: st.orderNo,
+              exercise_code: exCode + "_2",
+              raw_value: val2,
+              is_refused: false,
+              notes: "",
+            });
+          }
+        }
+ 
+        // ─── 5) XLSX yarat ──────────────────────────────────────────────────
+        try {
+          const wb = XLSX.utils.book_new();
+          const ws = XLSX.utils.json_to_sheet(rows, {
+            header: ["is_n", "exercise_code", "raw_value", "is_refused", "notes"],
+          });
+ 
+          // Sütun genişliklərini tənzimlə
+          ws["!cols"] = [
+            { wch: 14 },  // is_n
+            { wch: 22 },  // exercise_code
+            { wch: 12 },  // raw_value
+            { wch: 12 },  // is_refused
+            { wch: 24 },  // notes
+          ];
+ 
+          XLSX.utils.book_append_sheet(wb, ws, "Nəticələr");
+ 
+          const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+ 
+          // Fayl adı: export_<date>_<building>_<examDate>.xlsx
+          const parts = ["neticeler_export"];
+          if (buildingCode) parts.push(buildingCode);
+          if (examDate)     parts.push(examDate.replace(/-/g, ""));
+          if (useAppeal)    parts.push("appel");
+          const filename = parts.join("_") + ".xlsx";
+ 
+          res.setHeader("Content-Type",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+          res.setHeader("Content-Disposition",
+            `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
+          res.send(buf);
+        } catch (excelErr) {
+          res.status(500).json({ message: "Excel yaradıla bilmədi: " + excelErr.message });
+        }
+      });
+    });
+  });
+});
 module.exports = router;

@@ -45,7 +45,7 @@ router.get("/results", (req, res) => {
   let query = `
     SELECT
       s.id, s.name, s.middleName, s.surname,
-      s.result,s.result2,
+      s.result, s.result2,
       s.result_appeal, s.result_appeal2,
       s.subject_id, s.orderNo,
       sub.sectionId
@@ -63,7 +63,6 @@ router.get("/results", (req, res) => {
   db.all(query, params, (err, rows) => {
     if (err) return res.status(500).json(err);
 
-    // section=3 olan tələbələr üçün ekspert ballarını əlavə et
     if (!examId) return res.json(rows);
 
     const section3Ids = rows.filter(r => r.sectionId === 3).map(r => r.id);
@@ -101,15 +100,16 @@ router.get("/buildings", (req, res) => {
   });
 });
 
+// Bal saxla — exercise_id ilə (köhnə subjectId parametri də qəbul edilir — geriyə uyğunluq)
 router.post("/:id/result", (req, res) => {
   const { id } = req.params;
-  const { subjectId, buildingCode, examDate, value, field } = req.body;
+  const { exerciseId, subjectId, buildingCode, examDate, value, field } = req.body;
+  const usedExerciseId = exerciseId ?? subjectId; // köhnə kod uyğunluğu
 
-  // field göndərilməyibsə default olaraq "result"
   const targetField = field === "result2" ? "result2" : "result";
 
   const query = `UPDATE students SET ${targetField} = ?, subject_id = ?, building_id = ?, exam_date = ? WHERE id = ?`;
-  const params = [value, subjectId, buildingCode, examDate, id];
+  const params = [value, usedExerciseId, buildingCode, examDate, id];
 
   db.run(query, params, function (err) {
     if (err) return res.status(500).json(err);
@@ -117,9 +117,9 @@ router.post("/:id/result", (req, res) => {
     res.json({ message: "Kaydedildi ✔" });
   });
 });
+
 // ───────────────────── section = 3 flow ─────────────────────
 
-// Bir tələbənin bir imtahandakı bütün ekspert balları
 router.get("/:id/section3-results", (req, res) => {
   const { id } = req.params;
   const { examId } = req.query;
@@ -139,28 +139,40 @@ router.get("/:id/section3-results", (req, res) => {
   );
 });
 
-// section=3 üçün bal yadda saxla (upsert).
-// Validasiya: subject section=3 olmalıdır, və (examId, expertId) ExamExperts-də olmalıdır.
+// section=3 üçün bal saxla — exerciseId ilə (köhnə subjectId da qəbul edilir)
 router.post("/:id/section3-result", (req, res) => {
   const { id } = req.params;
-  const { examId, expertId, score, subjectId } = req.body;
+  const { examId, expertId, score, exerciseId, subjectId } = req.body;
+  const usedExerciseId = exerciseId ?? subjectId;
 
   if (!examId || !expertId || score === undefined || score === null) {
     return res.status(400).json({ message: "examId, expertId və score tələb olunur" });
   }
-  if (!subjectId) {
-    return res.status(400).json({ message: "subjectId tələb olunur" });
+  if (!usedExerciseId) {
+    return res.status(400).json({ message: "exerciseId tələb olunur" });
   }
 
-  // Subject-in section=3 olduğunu təsdiq et
-  db.get("SELECT sectionId FROM subjects WHERE id = ?", [subjectId], (err, sub) => {
-    if (err) return res.status(500).json({ message: err.message });
-    if (!sub) return res.status(404).json({ message: "Fənn tapılmadı" });
-    if (sub.sectionId !== 3) {
+  // Exercise-in section=3 olduğunu yoxla (exercise cədvəlindən, fallback subjects)
+  db.get("SELECT sectionId FROM exercises WHERE id = ?", [usedExerciseId], (err, ex) => {
+    if (err || !ex) {
+      // Fallback: köhnə subjects cədvəli
+      db.get("SELECT sectionId FROM subjects WHERE id = ?", [usedExerciseId], (err2, sub) => {
+        if (err2) return res.status(500).json({ message: err2.message });
+        if (!sub) return res.status(404).json({ message: "Exercise tapılmadı" });
+        if (sub.sectionId !== 3) {
+          return res.status(400).json({ message: "Ekspert balları yalnız section=3 üçün qeydə alınır" });
+        }
+        doUpsert();
+      });
+      return;
+    }
+    if (ex.sectionId !== 3) {
       return res.status(400).json({ message: "Ekspert balları yalnız section=3 üçün qeydə alınır" });
     }
+    doUpsert();
+  });
 
-    // Ekspert bu imtahana təyin olunubmu?
+  function doUpsert() {
     db.get(
       "SELECT id FROM ExamExperts WHERE ExamId = ? AND ExpertId = ?",
       [examId, expertId],
@@ -168,7 +180,6 @@ router.post("/:id/section3-result", (req, res) => {
         if (err) return res.status(500).json({ message: err.message });
         if (!ee) return res.status(400).json({ message: "Bu ekspert həmin imtahana təyin olunmayıb" });
 
-        // Upsert
         db.run(
           `INSERT INTO StudentResults (studentId, examId, expertId, score)
            VALUES (?, ?, ?, ?)
@@ -182,19 +193,15 @@ router.post("/:id/section3-result", (req, res) => {
         );
       }
     );
-  });
+  }
 });
-// backend/students.js içinə əlavə olunacaq endpoint-lər
-// (mövcud students.js-in sonuna, `module.exports = router;` sətrindən ƏVVƏL əlavə et)
 
+// ─────────────────── Foto endpoint ───────────────────
 const path = require("path");
 const fs = require("fs");
 
-// Foto qovluğu — backend/photos/ (server.js olan qovluğa görə nisbi)
 const PHOTOS_DIR = process.env.PHOTOS_DIR || path.join(__dirname, "photos");
 
-// Foto endpoint-i: GET /students/:id/photo
-// DB-dən yalnız photo_path oxuyur, sonra faylı birbaşa serve edir.
 router.get("/:id/photo", (req, res) => {
   const { id } = req.params;
   db.get("SELECT photo_path FROM students WHERE id = ?", [id], (err, row) => {
@@ -203,13 +210,11 @@ router.get("/:id/photo", (req, res) => {
       return res.status(404).json({ message: "Foto yoxdur" });
     }
 
-    // photo_path həm mütləq, həm də PHOTOS_DIR-ə görə nisbi ola bilər
     let filePath = row.photo_path;
     if (!path.isAbsolute(filePath)) {
       filePath = path.join(PHOTOS_DIR, filePath);
     }
 
-    // Qovluqdan kənara çıxmağa icazə vermə (path traversal qorunması)
     const resolved = path.resolve(filePath);
     const allowedRoot = path.resolve(PHOTOS_DIR);
     if (!resolved.startsWith(allowedRoot)) {
@@ -220,9 +225,9 @@ router.get("/:id/photo", (req, res) => {
       return res.status(404).json({ message: "Fayl tapılmadı" });
     }
 
-    // Brauzerin cache etməsi üçün (tələbə dəyişməsə, yenidən yükləmir)
     res.setHeader("Cache-Control", "public, max-age=3600");
     res.sendFile(resolved);
   });
 });
+
 module.exports = router;

@@ -9,13 +9,8 @@ import ResultsPage from "./ResultsPage";
 function AppShell() {
   const { phase, adminConfig, adminLogout } = useAuth();
 
-  if (phase === "login") {
-    return <LoginPage />;
-  }
-
-  if (phase === "setup") {
-    return <AdminSetupPage />;
-  }
+  if (phase === "login") return <LoginPage />;
+  if (phase === "setup") return <AdminSetupPage />;
 
   const isAppeal = adminConfig?.mode === "appeal";
 
@@ -53,17 +48,17 @@ function AppShell() {
                 {adminConfig.section.name}
               </span>
             )}
+            {adminConfig?.exercise && (
+              <span className="px-2 py-1 rounded-lg bg-white/5 border border-white/10">
+                {adminConfig.exercise.name}
+              </span>
+            )}
             <span className="px-2 py-1 rounded-lg bg-white/5 border border-white/10">
               {adminConfig?.building?.name}
             </span>
             <span className="px-2 py-1 rounded-lg bg-white/5 border border-white/10">
               {adminConfig?.date}
             </span>
-            {adminConfig?.subject && (
-              <span className="px-2 py-1 rounded-lg bg-white/5 border border-white/10">
-                {adminConfig.subject.Name}
-              </span>
-            )}
           </div>
           <button
             onClick={adminLogout}
@@ -81,16 +76,9 @@ function AppShell() {
       <Routes>
         <Route
           path="/"
-          element={
-            isAppeal
-              ? <AppealPage config={adminConfig} />
-              : <MainPage config={adminConfig} />
-          }
+          element={isAppeal ? <AppealPage config={adminConfig} /> : <MainPage config={adminConfig} />}
         />
-        <Route
-          path="/results"
-          element={<ResultsPage config={adminConfig} />}
-        />
+        <Route path="/results" element={<ResultsPage config={adminConfig} />} />
       </Routes>
     </>
   );

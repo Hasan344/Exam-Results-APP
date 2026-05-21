@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { useUnlockModal } from "./useUnlockModal";
 import { useToast } from "./Toast";
-
 import { API_BASE } from "./api";
+
 function MainPage({ config }) {
   const {
-    subject: selectedSubject,
+    exercise: selectedExercise,
     section: selectedSection,
     building: selectedBuilding,
     date: selectedDate,
@@ -14,8 +14,8 @@ function MainPage({ config }) {
   const { addToast } = useToast();
 
   const isSection3 = selectedSection?.id === 3;
-  const isSection1 = selectedSection?.id === 1; 
-  const isSubject4 = selectedSubject?.id === 4;
+  const isSection1 = selectedSection?.id === 1;
+  const isExercise4 = selectedExercise?.id === 4;
 
   const [orderNo, setOrderNo] = useState("");
   const [orderLocked, setOrderLocked] = useState(false);
@@ -111,13 +111,12 @@ function MainPage({ config }) {
   const saveField = async (field, value) => {
     try {
       const body = {
-        subjectId: selectedSubject.id,
+        exerciseId: selectedExercise.id,
         buildingCode: selectedBuilding.code,
         examDate: selectedDate,
         value: Number(value),
-        field, // backend hansı sütunu yeniləyəcəyini bilsin
+        field,
       };
-
       const res = await fetch(`${API_BASE}/students/${student.id}/result`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -155,7 +154,7 @@ function MainPage({ config }) {
           body: JSON.stringify({
             examId: selectedExam.id,
             expertId: e.id,
-            subjectId: selectedSubject.id,
+            exerciseId: selectedExercise.id,
             score: Number(expertScores[e.id]),
           }),
         })
@@ -180,9 +179,10 @@ function MainPage({ config }) {
     const ok = await saveField("result", result);
     if (!ok) return;
     setResult1Locked(true);
-    if (isSubject4) showSuccess(() => {});
+    if (isExercise4) showSuccess(() => {});
     else showSuccess(() => resetOrder());
   };
+
   const handleSaveBal2 = async () => {
     const ok = await saveField("result2", result2);
     if (!ok) return;
@@ -223,7 +223,6 @@ function MainPage({ config }) {
     examExperts.length > 0 &&
     examExperts.every(e => expertScoreLocks[e.id]);
 
-  // Foto URL-i qur: photo_path varsa backend-dən serve et, yoxsa köhnə base64/URL
   const photoSrc = student
     ? (student.photo_path
         ? `${API_BASE}/students/${student.id}/photo`
@@ -231,12 +230,9 @@ function MainPage({ config }) {
     : null;
 
   return (
-    // ⬇️ min-h-screen + items-center → h-screen + items-start + py-4 (ekranı aşmır)
     <div className="h-screen overflow-hidden bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-start justify-center p-4">
-      {/* ⬇️ max-w-2xl → max-w-4xl (kart böyüdü), p-10 → p-6 (daxili boşluqlar azaldı) */}
       <div className="w-full max-w-5xl backdrop-blur-lg bg-white/20 border border-white/30 rounded-3xl shadow-2xl p-6 text-white">
 
-        {/* ⬇️ mb-6 → mb-3 (üst chiplər daha sıx) */}
         <div className="flex flex-wrap gap-2 mb-3">
           {selectedSection && (
             <div className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-center">
@@ -245,8 +241,8 @@ function MainPage({ config }) {
             </div>
           )}
           <div className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-center">
-            <p className="text-[10px] text-white/60 mb-0.5">Fənn</p>
-            <p className="text-sm font-bold truncate">{selectedSubject?.Name}</p>
+            <p className="text-[10px] text-white/60 mb-0.5">Hərəkət</p>
+            <p className="text-sm font-bold truncate">{selectedExercise?.name}</p>
           </div>
           <div className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-center">
             <p className="text-[10px] text-white/60 mb-0.5">Bina</p>
@@ -292,40 +288,30 @@ function MainPage({ config }) {
         )}
 
         {student && (
-          // ⬇️ p-8 → p-5, mb-8 → mb-4, pb-6 → pb-4
           <div className="bg-white rounded-3xl p-5 text-black shadow-xl">
-
-            {/* ⬇️ Foto w-28 h-28 → w-40 h-40 (böyüdü). Ad şriftı də yüngülcə böyüdü. */}
             <div className="flex items-center gap-5 mb-4 pb-4 border-b border-gray-100">
               <div className="w-48 h-48 rounded-2xl overflow-hidden bg-gray-100 flex-shrink-0">
                 {photoSrc ? (
-                  <img
-                    src={photoSrc}
-                    alt="foto"
-                    className="w-full h-full object-cover"
-                    onError={(e) => { e.currentTarget.style.display = "none"; }}
-                  />
+                  <img src={photoSrc} alt="foto" className="w-full h-full object-cover"
+                       onError={(e) => { e.currentTarget.style.display = "none"; }} />
                 ) : (
                   <div className="flex items-center justify-center h-full text-gray-400 text-sm">Foto yoxdur</div>
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2 truncate">
-                  {student.name} {student.surname} {student.middleName}
+                <h2 className="text-2xl font-bold text-gray-900 mb-3 truncate">
+                  {student.name} {student.middleName} {student.surname}
                 </h2>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                  <p className="text-sm text-gray-500">İş nömrəsi <span className="text-gray-800 font-medium">{student.Is_no}</span></p>
-                  <p className="text-sm text-gray-500">Doğum tarixi <span className="text-gray-800 font-medium">{student.birth_date}</span></p>
-                  <p className="text-sm text-gray-500">Komissiya № <span className="text-gray-800 font-medium">{student.commissionNo}</span></p>
                   <p className="text-sm text-gray-500">Sıra № <span className="text-gray-800 font-medium">{student.orderNo}</span></p>
+                  {student.result != null && (
+                    <p className="text-sm text-gray-500">Mövcud bal <span className="text-gray-800 font-medium">{student.result}</span></p>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* ⬇️ gap-5 → gap-3 (nəticə bölümünün daxili boşluqları sıxıldı) */}
             <div className="flex flex-col gap-3">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Nəticə</p>
-
               {isSection3 ? (
                 examExperts.length === 0 ? (
                   <p className="text-sm text-gray-500 px-4 py-3 rounded-xl bg-gray-50 border border-gray-200">
@@ -368,31 +354,31 @@ function MainPage({ config }) {
                   </>
                 )
               ) : (
-                 <>
+                <>
                   <BalInput
-                    label={isSection1 ? (selectedSubject?.Name ?? "Bal 1") : "Bal 1"}
+                    label={isSection1 ? (selectedExercise?.name ?? "Bal 1") : "Bal 1"}
                     value={result}
                     onChange={setResult}
                     locked={result1Locked}
                     onUnlock={() => handleUnlock(setResult1Locked)}
                     onSave={handleSaveBal1}
-                    saveLabel={isSection1 ? `${selectedSubject?.Name ?? "Bal 1"}-i yadda saxla` : "Bal 1-i yadda saxla"}
+                    saveLabel={isSection1 ? `${selectedExercise?.name ?? "Bal 1"}-i yadda saxla` : "Bal 1-i yadda saxla"}
                   />
 
-                  {isSection1 && isSubject4 && (
+                  {isSection1 && isExercise4 && (
                     result1Locked ? (
                       <BalInput
-                        label={`${selectedSubject?.Name ?? "Bal"} 2`}
+                        label={`${selectedExercise?.name ?? "Bal"} 2`}
                         value={result2}
                         onChange={setResult2}
                         locked={result2Locked}
                         onUnlock={() => handleUnlock(setResult2Locked)}
                         onSave={handleSaveBal2}
-                        saveLabel={`${selectedSubject?.Name ?? "Bal"} 2-i yadda saxla`}
+                        saveLabel={`${selectedExercise?.name ?? "Bal"} 2-i yadda saxla`}
                       />
                     ) : (
                       <p className="text-xs text-gray-400 text-center py-2">
-                        Əvvəlcə {selectedSubject?.Name ?? "Bal 1"}-i yadda saxlayın
+                        Əvvəlcə {selectedExercise?.name ?? "Bal 1"}-i yadda saxlayın
                       </p>
                     )
                   )}
